@@ -1,0 +1,12 @@
+{
+  "args": [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--font-render-hinting=none"
+  ],
+  "defaultViewport": {
+    "width": 4000,
+    "height": 4000,
+    "deviceScaleFactor": 1
+  }
+}

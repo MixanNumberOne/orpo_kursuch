@@ -1,0 +1,450 @@
+/* ============================================================
+   DungeonMapBuilder — Auth & Cloud UI styles
+   Appended after the main style.css.
+   ============================================================ */
+
+/* ── Header cloud buttons ────────────────────────────────────────────────────── */
+.header-sep {
+  width:       1px;
+  height:      18px;
+  background:  rgba(90,53,21,.55);
+  flex-shrink: 0;
+  align-self:  center;
+}
+
+/* Cloud-save button shows active map name via data-mapname attribute */
+#btn-cloud-save[data-mapname]::after {
+  content:     ' — ' attr(data-mapname);
+  font-size:   .72em;
+  opacity:     .8;
+  max-width:   140px;
+  overflow:    hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display:     inline-block;
+  vertical-align: middle;
+}
+
+/* ── Auth modal overlay ──────────────────────────────────────────────────────── */
+.auth-modal {
+  position:   fixed;
+  inset:      0;
+  z-index:    9000;
+  display:    flex;
+  align-items:     center;
+  justify-content: center;
+}
+.auth-modal.hidden { display: none; }
+
+.auth-backdrop {
+  position: absolute;
+  inset:    0;
+  background: rgba(0, 0, 0, .72);
+  backdrop-filter: blur(3px);
+}
+
+/* ── Auth box ────────────────────────────────────────────────────────────────── */
+.auth-box {
+  position:   relative;
+  z-index:    1;
+  width:      min(420px, 92vw);
+  background: #1a1209;
+  border:     2px solid #8b6914;
+  border-radius: 4px;
+  box-shadow: 0 8px 48px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,215,100,.08);
+  padding:    2rem 2.2rem 2.4rem;
+  color:      #d4b896;
+  font-family: 'Cinzel', serif;
+}
+
+.auth-box.wide {
+  width:      min(680px, 94vw);
+  /* dvh tracks the *visible* viewport on mobile; plain vh refers to the large
+     viewport (URL bar hidden), which can make the box taller than the screen.
+     Since .auth-modal is fixed + centred and body has overflow:hidden, the
+     overflowing part would be unreachable — no scrollbar can recover it. */
+  max-height: 80vh;
+  max-height: min(80vh, 80dvh);
+  display:    flex;
+  flex-direction: column;
+  min-height: 0;            /* lets the scrolling child actually shrink */
+}
+
+.auth-logo {
+  text-align:  center;
+  font-family: 'Cinzel Decorative', serif;
+  font-size:   1.15rem;
+  color:       #c8a44a;
+  letter-spacing: .06em;
+  margin-bottom: 1.6rem;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────────────────── */
+.auth-tabs {
+  display:         flex;
+  border-bottom:   1px solid #4a3010;
+  margin-bottom:   1.4rem;
+}
+
+.auth-tab {
+  flex:       1;
+  background: none;
+  border:     none;
+  padding:    .55rem 0 .6rem;
+  cursor:     pointer;
+  color:      #7a6040;
+  font-family: 'Cinzel', serif;
+  font-size:  .82rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+  transition: color .18s, border-color .18s;
+}
+.auth-tab:hover  { color: #c8a44a; }
+.auth-tab.active { color: #c8a44a; border-bottom-color: #c8a44a; }
+
+/* ── Form fields ─────────────────────────────────────────────────────────────── */
+.auth-form { display: flex; flex-direction: column; gap: .9rem; }
+.auth-form.hidden { display: none; }
+
+.auth-field { display: flex; flex-direction: column; gap: .3rem; }
+
+.auth-field label {
+  font-size:   .72rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color:       #9a8060;
+}
+.auth-field label small { font-size: .68rem; text-transform: none; color: #6a5030; }
+
+.auth-field input {
+  background:  #100a04;
+  border:      1px solid #4a3010;
+  border-radius: 3px;
+  color:       #d4b896;
+  font-family: 'IM Fell English', serif;
+  font-size:   .9rem;
+  padding:     .5rem .7rem;
+  outline:     none;
+  transition:  border-color .18s;
+}
+.auth-field input:focus { border-color: #c8a44a; }
+
+.auth-error {
+  min-height: 1.1em;
+  color:      #e05050;
+  font-size:  .78rem;
+  font-family: 'IM Fell English', serif;
+  margin:     0;
+}
+
+/* ── Full-width button variant ───────────────────────────────────────────────── */
+.btn.full-width { width: 100%; justify-content: center; margin-top: .3rem; }
+
+/* ── Tier badge (in header user button) ──────────────────────────────────────── */
+.auth-tier-badge {
+  display:       inline-block;
+  font-size:     .62rem;
+  font-family:   'Cinzel', serif;
+  letter-spacing:.03em;
+  padding:       1px 5px;
+  border-radius: 3px;
+  margin-left:   4px;
+  vertical-align: middle;
+  background:    rgba(90,53,21,.55);
+  color:         #a88a55;
+  border:        1px solid rgba(90,53,21,.5);
+}
+/* Per-tier colours */
+.auth-tier-badge[data-tier="supporter"] { background: rgba(30,80,160,.4);  color: #7ab0f0; border-color: rgba(60,120,220,.45); }
+.auth-tier-badge[data-tier="patron"]    { background: rgba(100,40,160,.4); color: #c070f0; border-color: rgba(140,60,210,.45); }
+.auth-tier-badge[data-tier="pro"]       { background: rgba(160,100,0,.45); color: #f0c040; border-color: rgba(200,140,0,.5);  }
+.auth-tier-badge[data-tier="admin"]     { background: rgba(160,20,20,.5);  color: #f07070; border-color: rgba(200,40,40,.55); }
+
+/* ── Map counter in cloud toolbar ────────────────────────────────────────────── */
+.cloud-counter {
+  font-family: 'IM Fell English', serif;
+  font-size:   .75rem;
+  font-style:  italic;
+  color:       #5a4020;
+  margin-left: auto;
+}
+
+/* ── Header user menu ────────────────────────────────────────────────────────── */
+.auth-user-menu,
+.header-dropdown-wrap {
+  position:    relative;
+  display:     inline-flex;
+  align-self:  center;
+  flex-shrink: 0;
+}
+.auth-user-menu.hidden { display: none; }
+
+.auth-dropdown {
+  position:      absolute;
+  top:           calc(100% + 4px);
+  right:         0;
+  min-width:     160px;
+  background:    #1a1209;
+  border:        1px solid #5a4018;
+  border-radius: 4px;
+  box-shadow:    0 8px 28px rgba(0,0,0,.8);
+  list-style:    none;
+  margin:        0;
+  padding:       .3rem 0;
+  z-index:       9000;
+}
+.auth-dropdown.hidden { display: none; }
+.auth-dropdown li     { list-style: none; }
+
+.dropdown-item {
+  display:    block;
+  width:      100%;
+  background: none;
+  border:     none;
+  text-align: left;
+  padding:    .45rem 1rem;
+  color:      #c8a44a;
+  font-family: 'Cinzel', serif;
+  font-size:  .78rem;
+  letter-spacing: .04em;
+  cursor:     pointer;
+  transition: background .14s;
+}
+.dropdown-item:hover   { background: rgba(200,164,74,.12); }
+.dropdown-item.danger  { color: #d05050; }
+.dropdown-item.danger:hover { background: rgba(200,60,60,.12); }
+
+.dropdown-sep {
+  height:     1px;
+  background: #3a2808;
+  margin:     .3rem 0;
+}
+
+/* ── Cloud modals ────────────────────────────────────────────────────────────── */
+.cloud-modal-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   1rem;
+}
+.cloud-modal-header h2 {
+  font-size:   1rem;
+  color:       #c8a44a;
+  margin:      0;
+  font-family: 'Cinzel Decorative', serif;
+  letter-spacing: .05em;
+}
+.cloud-modal-close {
+  background: none;
+  border:     none;
+  color:      #7a6040;
+  font-size:  1.1rem;
+  cursor:     pointer;
+  line-height: 1;
+  padding:    .2rem .4rem;
+  transition: color .14s;
+}
+.cloud-modal-close:hover { color: #c8a44a; }
+
+.cloud-toolbar {
+  display:    flex;
+  align-items: center;
+  gap:        .8rem;
+  margin-bottom: .9rem;
+  flex-shrink: 0;
+  flex-wrap:  wrap;         /* select + buttons + hint wrap instead of overflowing */
+}
+.cloud-hint {
+  font-family: 'IM Fell English', serif;
+  font-size:  .72rem;
+  color:      #5a4020;
+  font-style: italic;
+}
+
+/* ── List container ──────────────────────────────────────────────────────────── */
+.cloud-list {
+  overflow-y: auto;
+  flex:       1;
+  min-height: 120px;
+  scrollbar-width: thin;
+  scrollbar-color: #4a3010 transparent;
+  overscroll-behavior: contain;        /* scrolling the list never scrolls the page behind */
+  -webkit-overflow-scrolling: touch;   /* momentum scrolling on iOS */
+}
+/* Explicit, visible scrollbar — same treatment as #canvas-area in style.css */
+.cloud-list::-webkit-scrollbar       { width: 8px; }
+.cloud-list::-webkit-scrollbar-track { background: #0e0904; }
+.cloud-list::-webkit-scrollbar-thumb { background: #4a3010; border-radius: 4px; }
+
+.cloud-loading, .cloud-empty {
+  text-align:  center;
+  padding:     2rem 1rem;
+  color:       #5a4020;
+  font-style:  italic;
+  font-family: 'IM Fell English', serif;
+}
+.cloud-empty.error { color: #d05050; }
+
+/* ── Map list rows ───────────────────────────────────────────────────────────── */
+.cloud-row {
+  display:        flex;
+  align-items:    center;
+  justify-content: space-between;
+  padding:        .55rem .6rem;
+  border-bottom:  1px solid #2a1e0a;
+  gap:            .8rem;
+  transition:     background .14s;
+}
+.cloud-row:hover   { background: rgba(200,164,74,.06); }
+.cloud-row.active  { background: rgba(200,164,74,.10); }
+.cloud-row:last-child { border-bottom: none; }
+
+.cloud-row-info {
+  flex:           1;
+  min-width:      0;
+  display:        flex;
+  flex-direction: column;
+  gap:            .15rem;
+}
+.cloud-row-name {
+  font-size:      .85rem;
+  color:          #d4b896;
+  white-space:    nowrap;
+  overflow:       hidden;
+  text-overflow:  ellipsis;
+}
+.cloud-row-meta {
+  font-size:      .68rem;
+  color:          #5a4020;
+  font-family:    'IM Fell English', serif;
+  font-style:     italic;
+}
+.cloud-row-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+
+/* ── btn.small ───────────────────────────────────────────────────────────────── */
+.btn.small {
+  padding:    .25rem .55rem;
+  font-size:  .72rem;
+}
+
+/* ── Asset grid ──────────────────────────────────────────────────────────────── */
+.cloud-asset-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows:        max-content;  /* rows sized by content — never squeezed */
+  gap:                   .7rem;
+  padding:               .5rem .2rem;
+  align-content:         start;
+}
+.cloud-asset-grid .cloud-loading,
+.cloud-asset-grid .cloud-empty { grid-column: 1 / -1; }
+
+.cloud-asset-card {
+  background:    #120d05;
+  border:        1px solid #3a2808;
+  border-radius: 3px;
+  overflow:      hidden;
+  display:       flex;
+  flex-direction: column;
+  transition:    border-color .14s;
+}
+.cloud-asset-card:hover { border-color: #8b6914; }
+
+.cloud-asset-thumb {
+  /* Always a square, with the image fitted inside it: 'contain' never crops or
+     stretches the artwork (the old 'cover' did both). flex:0 0 auto is the part
+     that matters — as a flex child it used to shrink when the modal got short,
+     which squashed the whole card and removed the overflow (so the scrollbar
+     disappeared instead of the list scrolling). */
+  aspect-ratio:        1 / 1;
+  min-height:          80px;        /* fallback where aspect-ratio is unsupported */
+  flex:                0 0 auto;
+  background-size:     contain;
+  background-repeat:   no-repeat;
+  background-position: center;
+  background-color:    #0e0904;
+}
+.cloud-asset-info {
+  padding:        .4rem .5rem;
+  display:        flex;
+  flex-direction: column;
+  gap:            .15rem;
+  border-bottom:  1px solid #2a1e0a;
+  flex:           0 0 auto;         /* title + size stay fully visible */
+}
+.cloud-asset-name {
+  font-size:     .72rem;
+  color:         #c8a44a;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+.cloud-asset-size {
+  font-size:  .65rem;
+  color:      #5a4020;
+  font-family:'IM Fell English', serif;
+  font-style: italic;
+}
+.cloud-asset-actions {
+  display:         flex;
+  justify-content: space-between;
+  padding:         .35rem .4rem;
+  gap:             .3rem;
+  flex:            0 0 auto;        /* Use / delete buttons stay fully visible */
+}
+
+/* ── Toast notification ──────────────────────────────────────────────────────── */
+.cloud-toast {
+  position:      fixed;
+  bottom:        5rem;
+  left:          50%;
+  transform:     translateX(-50%) translateY(1.2rem);
+  background:    #1a1209;
+  border:        1px solid #8b6914;
+  border-radius: 4px;
+  color:         #c8a44a;
+  font-family:   'Cinzel', serif;
+  font-size:     .8rem;
+  padding:       .55rem 1.2rem;
+  box-shadow:    0 4px 16px rgba(0,0,0,.6);
+  opacity:       0;
+  pointer-events:none;
+  transition:    opacity .25s, transform .25s;
+  max-width:     min(90vw, 32rem);
+  text-align:    center;
+  z-index:       9500;
+}
+.cloud-toast.visible {
+  opacity:   1;
+  transform: translateX(-50%) translateY(0);
+}
+.cloud-toast.error { border-color: #8b2020; color: #e08080; }
+
+/* ── Phone layout for the wide modals (My Maps / My Assets) ───────────────────
+ * auth.css had no media queries at all, so these modals were never adapted to
+ * small screens: the toolbar overflowed sideways and the box could exceed the
+ * visible viewport. Keep in sync with .auth-box / .cloud-* above.
+ */
+@media (max-width: 560px) {
+  .auth-box {
+    padding: 1.1rem 1rem 1.3rem;      /* desktop: 2rem 2.2rem 2.4rem */
+  }
+  .auth-box.wide {
+    width: 96vw;
+    max-height: 92vh;
+    max-height: min(92vh, 92dvh);
+  }
+  .cloud-modal-header { margin-bottom: .6rem; }
+  .cloud-toolbar      { gap: .5rem; margin-bottom: .7rem; }
+
+  /* Give the category picker and the hint their own full-width rows, so the
+     action buttons keep a usable size instead of being squeezed. */
+  #cloud-upload-cat { flex: 1 1 100%; }
+  .cloud-hint       { flex: 1 1 100%; }
+
+  .cloud-asset-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: .5rem;
+  }
+}

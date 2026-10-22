@@ -1,0 +1,28 @@
+{
+  "theme": "default",
+  "themeVariables": {
+    "fontFamily": "Arial, Helvetica, sans-serif",
+    "fontSize": "14px"
+  },
+  "class": {
+    "useMaxWidth": false,
+    "htmlLabels": true
+  },
+  "flowchart": {
+    "useMaxWidth": false,
+    "htmlLabels": true,
+    "padding": 20
+  },
+  "state": {
+    "useMaxWidth": false,
+    "htmlLabels": true
+  },
+  "er": {
+    "useMaxWidth": false,
+    "htmlLabels": true
+  },
+  "sequence": {
+    "useMaxWidth": false
+  },
+  "maxTextSize": 500000
+}

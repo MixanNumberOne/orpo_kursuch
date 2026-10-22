@@ -1,0 +1,8 @@
+.foreignObject,
+foreignObject > div,
+foreignObject span,
+foreignObject p {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
