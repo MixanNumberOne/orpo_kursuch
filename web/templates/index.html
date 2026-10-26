@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Map Builder — dev-прототип</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #14100a;          /* тёмный фон, как в оригинале */
+    color: #e8e2d4;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    background: #1f1a12;
+    border-bottom: 1px solid #3a3124;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; letter-spacing: 1px; }
+  .tag { font-size: 11px; opacity: .6; margin-right: 12px; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 6px 12px;
+    border: 1px solid #4a3f2e;
+    border-radius: 6px;
+    background: #2a241a;
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .btn:hover { background: #3a3120; }
+  .btn.active { background: #6b5427; border-color: #a08030; box-shadow: 0 0 0 1px #a08030; }
+
+  /* Главная область */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    overflow: auto;
+  }
+  #canvas-wrap {
+    background: #201b12;
+    border: 1px solid #4a3f2e;
+    border-radius: 6px;
+    padding: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+  }
+  canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    cursor: crosshair;
+    touch-action: none;         /* чтобы drag работал на тач-экранах */
+    image-rendering: pixelated;
+  }
+
+  #statusbar {
+    display: flex;
+    gap: 18px;
+    font-size: 13px;
+    opacity: .85;
+    flex-wrap: wrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .badge { background:#2a241a; border:1px solid #3a3124; padding:2px 8px; border-radius:4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ DUNGEON MAP BUILDER</h1>
+  <span class="tag">dev-прототип</span>
+
+  <div class="toolbar">
+    <!-- Инструменты: 0=пусто, 1=стена, 2=пол, 3=дверь -->
+    <button class="btn active" data-tool="wall">🖌 Стена</button>
+    <button class="btn" data-tool="floor">🪣 Пол</button>
+    <button class="btn" data-tool="door">🚪 Дверь</button>
+    <button class="btn" data-tool="empty">🧹 Стереть</button>
+    <span style="opacity:.4">|</span>
+    <button class="btn" id="btn-gen">⚙ Сгенерировать</button>
+    <button class="btn" id="btn-clear">🗑 Очистить</button>
+  </div>
+</header>
+
+<main>
+  <div id="canvas-wrap">
+    <!-- CELL = 24px, сетка 48x32 клетки => 1152x768 -->
+    <canvas id="map" width="1152" height="768"></canvas>
+  </div>
+
+  <div id="statusbar">
+    <span class="badge">инструмент: <b id="st-tool">стена</b></span>
+    <span class="badge">курсор: <span id="st-pos">—</span></span>
+    <span class="badge">пусто: <b id="st-empty">0</b></span>
+    <span class="badge">стена: <b id="st-wall">0</b></span>
+    <span class="badge">пол: <b id="st-floor">0</b></span>
+    <span class="badge">дверь: <b id="st-door">0</b></span>
+  </div>
+</main>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   1. КОНСТАНТЫ И СОСТОЯНИЕ
+   ─ позже переедет в js/main.js (state) + js/ui.js (инструменты)
+   ══════════════════════════════════════════════════════════════════ */
+const COLS = 48, ROWS = 32, CELL = 24;
+const EMPTY = 0, WALL = 1, FLOOR = 2, DOOR = 3;
+
+const grid = new Uint8Array(COLS * ROWS);
+const idx = (x, y) => y * COLS + x;
+
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+
+let currentTool = WALL;      // инструмент из тулбара
+let painting = false;        // зажата ли кнопка мыши
+let prevX = -1, prevY = -1;  // предыдущая клетка при драге (для линий)
+
+/* ══════════════════════════════════════════════════════════════════
+   2. ОТРИСОВКА
+   ══════════════════════════════════════════════════════════════════ */
+const COLORS = {
+  [EMPTY]: '#26221b',   // тёмная скала
+  [WALL]:  '#3e3a33',   // серая стена
+  [FLOOR]: '#b3a184',   // каменный пол
+  [DOOR]:  '#8a5426',   // деревянная дверь
+};
+
+function draw() {
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      ctx.fillStyle = COLORS[grid[idx(x, y)]];
+      ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+    }
+  }
+  // сетка поверх
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= COLS; x++) {
+    ctx.moveTo(x * CELL + 0.5, 0);
+    ctx.lineTo(x * CELL + 0.5, ROWS * CELL);
+  }
+  for (let y = 0; y <= ROWS; y++) {
+    ctx.moveTo(0, y * CELL + 0.5);
+    ctx.lineTo(COLS * CELL, y * CELL + 0.5);
+  }
+  ctx.stroke();
+  updateStats();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   3. ГЕНЕРАЦИЯ ПОДЗЕМЕЛЬЯ (заглушка-минимум: комнаты + коридоры)
+   ─ позже заменится нормальным BSP-генератором в js/bsp.js
+   ══════════════════════════════════════════════════════════════════ */
+function room(x, y, w, h) {
+  for (let yy = y; yy < y + h; yy++)
+    for (let xx = x; xx < x + w; xx++)
+      grid[idx(xx, yy)] = FLOOR;
+}
+
+function corridor(ax, ay, bx, by) {   // L-образный коридор
+  let x = ax, y = ay, i = 0;
+  while (x !== bx && i++ < COLS) { grid[idx(x, y)] = FLOOR; x += Math.sign(bx - x); }
+  while (y !== by && i++ < ROWS) { grid[idx(x, y)] = FLOOR; y += Math.sign(by - y); }
+  grid[idx(x, y)] = FLOOR;
+}
+
+function genDungeon() {
+  grid.fill(WALL);                       // всё — скала
+  const rooms = [];
+  const N = 14 + ((Math.random() * 4) | 0);
+  for (let i = 0; i < N; i++) {
+    const w = 3 + ((Math.random() * 8) | 0);
+    const h = 3 + ((Math.random() * 6) | 0);
+    const x = 1 + ((Math.random() * (COLS - w - 2)) | 0);
+    const y = 1 + ((Math.random() * (ROWS - h - 2)) | 0);
+    room(x, y, w, h);
+    rooms.push({ cx: x + (w >> 1), cy: y + (h >> 1) });
+  }
+  for (let i = 1; i < rooms.length; i++)
+    corridor(rooms[i - 1].cx, rooms[i - 1].cy, rooms[i].cx, rooms[i].cy);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   4. ВВОД: рисование мышью (с интерполяцией линии по Брезенхему)
+   ══════════════════════════════════════════════════════════════════ */
+function paintLine(x0, y0, x1, y1) {
+  let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+  for (;;) {
+    if (x0 >= 0 && y0 >= 0 && x0 < COLS && y0 < ROWS) grid[idx(x0, y0)] = currentTool;
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x0 += sx; }
+    if (e2 < dx)  { err += dx; y0 += sy; }
+  }
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  painting = true;
+  const c = cellFromEvent(e);
+  prevX = c.x; prevY = c.y;
+  paintLine(prevX, prevY, prevX, prevY);
+  draw();
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  const c = cellFromEvent(e);
+  document.getElementById('st-pos').textContent = `${c.x},${c.y}`;
+  if (painting) {
+    paintLine(prevX, prevY, c.x, c.y);
+    prevX = c.x; prevY = c.y;
+    draw();
+  }
+});
+
+canvas.addEventListener('pointerup',    () => { painting = false; });
+canvas.addEventListener('pointerleave', (e) => {
+  painting = false;
+  document.getElementById('st-pos').textContent = '—';
+});
+
+function cellFromEvent(e) {
+  const r = canvas.getBoundingClientRect();
+  const sx = canvas.width  / r.width;   // масштаб CSS -> пиксели canvas
+  const sy = canvas.height / r.height;
+  const x = ((e.clientX - r.left) * sx / CELL) | 0;
+  const y = ((e.clientY - r.top)  * sy / CELL) | 0;
+  return { x, y };
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   5. ЛЁГКАЯ ОТЛАДКА: статус-бар и тулбар
+   ══════════════════════════════════════════════════════════════════ */
+function updateStats() {
+  let e = 0, w = 0, f = 0, d = 0;
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i] === EMPTY) e++;
+    else if (grid[i] === WALL) w++;
+    else if (grid[i] === FLOOR) f++;
+    else d++;
+  }
+  document.getElementById('st-empty').textContent = e;
+  document.getElementById('st-wall').textContent = w;
+  document.getElementById('st-floor').textContent = f;
+  document.getElementById('st-door').textContent = d;
+}
+
+const TOOL_LABEL = { [WALL]: 'стена', [FLOOR]: 'пол', [DOOR]: 'дверь', [EMPTY]: 'стереть' };
+
+document.querySelectorAll('.toolbar .btn[data-tool]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.toolbar .btn[data-tool]').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTool = { wall: WALL, floor: FLOOR, door: DOOR, empty: EMPTY }[btn.dataset.tool];
+    document.getElementById('st-tool').textContent = TOOL_LABEL[currentTool];
+  });
+});
+
+document.getElementById('btn-gen').addEventListener('click', () => { genDungeon(); draw(); });
+document.getElementById('btn-clear').addEventListener('click', () => { grid.fill(EMPTY); draw(); });
+
+/* Стартовое состояние: сразу генерируем карту, чтобы было что рисовать */
+genDungeon();
+draw();
+</script>
+</body>
+</html>
