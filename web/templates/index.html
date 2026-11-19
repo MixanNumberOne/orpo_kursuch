@@ -2,204 +2,245 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dungeon Map Builder — dev-прототип</title>
-<style>
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #14100a; color: #e8e2d4; height: 100vh; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 12px; padding: 8px 14px; background: #1f1a12; border-bottom: 1px solid #3a3124; flex-wrap: wrap; }
-  header h1 { font-size: 16px; margin: 0 12px 0 0; letter-spacing: 1px; }
-  .tag { font-size: 11px; opacity: .6; margin-right: 12px; }
-  .toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .btn { padding: 6px 12px; border: 1px solid #4a3f2e; border-radius: 6px; background: #2a241a; color: inherit; cursor: pointer; font-size: 13px; }
-  .btn:hover { background: #3a3120; }
-  .btn.active { background: #6b5427; border-color: #a08030; box-shadow: 0 0 0 1px #a08030; }
-  main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; overflow: auto; }
-  #canvas-wrap { background: #201b12; border: 1px solid #4a3f2e; border-radius: 6px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
-  canvas { display: block; max-width: 100%; height: auto; cursor: crosshair; touch-action: none; image-rendering: pixelated; }
-  #statusbar { display: flex; gap: 18px; font-size: 13px; opacity: .85; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
-  .badge { background:#2a241a; border:1px solid #3a3124; padding:2px 8px; border-radius:4px; }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf }}">
+<title>Dungeon Map Builder — карты подземелий</title>
+<link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
-
+<body class="app" data-page="editor">
 <header>
-  <h1>⚔ DUNGEON MAP BUILDER</h1>
-  <span class="tag">dev-прототип</span>
-  <div class="toolbar">
-    <button class="btn active" data-tool="wall">🖌 Стена</button>
-    <button class="btn" data-tool="floor">🪣 Пол</button>
-    <button class="btn" data-tool="door">🚪 Дверь</button>
-    <button class="btn" data-tool="empty">🧹 Стереть</button>
-    <span style="opacity:.4">|</span>
-    <button class="btn" id="btn-gen">⚙ Сгенерировать</button>
-    <button class="btn" id="btn-clear">🗑 Очистить</button>
+  <div class="brand">
+    <h1>Dungeon Map Builder</h1>
+    <p>Генератор и редактор карт подземелий</p>
   </div>
+  <nav>
+    <button id="btn-nav-editor" class="btn active" type="button">Редактор</button>
+    <button id="btn-nav-library" class="btn" type="button">Мои карты</button>
+    <button id="btn-nav-gallery" class="btn" type="button">Галерея</button>
+  </nav>
+  <div class="toolbar">
+    <button id="btn-new" class="btn" type="button">Новая</button>
+    <button id="btn-undo" class="btn" type="button" data-auth="Отмена действий доступна после входа" title="Ctrl+Z">Отменить</button>
+    <button id="btn-redo" class="btn" type="button" data-auth="Повтор действий доступен после входа" title="Ctrl+Y">Повторить</button>
+    <button id="btn-player" class="btn" type="button" data-auth="Режим игрока доступен после входа">Режим игрока</button>
+    <button id="btn-save" class="btn primary" type="button" data-auth="Сохранение в облако доступно после входа">Сохранить</button>
+    <button id="btn-share" class="btn" type="button" data-auth="Ссылка для просмотра доступна после входа">Поделиться</button>
+    <button id="btn-export" class="btn" type="button">Экспорт</button>
+    <button id="btn-bell" class="btn" type="button" hidden>Уведомления <span id="bell-count"></span></button>
+    <div id="auth-box"></div>
+  </div>
+  <div id="notif-panel" hidden></div>
 </header>
 
 <main>
-  <div id="canvas-wrap">
-    <!-- CELL = 16px для лучшей видимости мелких объектов, сетка 64x32 => 1024x512 -->
-    <canvas id="map" width="1024" height="512"></canvas>
-  </div>
-  <div id="statusbar">
-    <span class="badge">инструмент: <b id="st-tool">стена</b></span>
-    <span class="badge">курсор: <span id="st-pos">—</span></span>
-  </div>
+  <section id="view-editor" class="view active">
+    <aside class="tools">
+      <button class="tool active" type="button" data-tool="wall">Стена</button>
+      <button class="tool" type="button" data-tool="floor">Пол</button>
+      <button class="tool" type="button" data-tool="door">Дверь</button>
+      <button class="tool" type="button" data-tool="empty">Ластик</button>
+      <button class="tool" type="button" data-tool="trap" data-auth="Ловушки доступны после входа">Ловушка</button>
+      <button class="tool" type="button" data-tool="treasure" data-auth="Клад доступен после входа">Клад</button>
+      <button class="tool" type="button" data-tool="stairs" data-auth="Лестницы доступны после входа">Лестница</button>
+      <button class="tool" type="button" data-tool="select" data-auth="Выбор объектов доступен после входа">Выбор</button>
+      <button class="tool" type="button" data-tool="text" data-auth="Текстовые метки доступны после входа">Метка</button>
+      <button class="tool" type="button" data-tool="sprite" data-auth="Спрайты доступны после входа">Спрайт</button>
+    </aside>
+    <div class="stage">
+      <div id="player-banner" class="banner" hidden>Режим игрока: заметки мастера скрыты</div>
+      <div class="canvas-wrap"><canvas id="map" width="640" height="384"></canvas></div>
+      <div id="statusbar">
+        <span>инструмент: <b id="st-tool">стена</b></span>
+        <span>слой: <b id="st-layer">Стены и пол</b></span>
+        <span>курсор: <b id="st-pos">—</b></span>
+        <span id="st-dirty">новая карта</span>
+        <span id="st-guest">Гость: стена, пол, дверь и ластик. Остальное — после входа.</span>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="tabs">
+        <button class="btn active" type="button" data-tab="map">Карта</button>
+        <button class="btn" type="button" data-tab="layers">Слои</button>
+        <button class="btn" type="button" data-tab="grid">Сетка</button>
+        <button class="btn" type="button" data-tab="gen">Генератор</button>
+        <button class="btn" type="button" data-tab="assets">Ассеты</button>
+      </div>
+      <div data-panel="map">
+        <label>Название <input id="map-name" maxlength="80" value="Новая карта"></label>
+        <label>Папка
+          <select id="map-folder" data-auth="Папки доступны после входа"><option value="">Без папки</option></select>
+        </label>
+        <fieldset>
+          <legend>Теги</legend>
+          <div id="map-tags"><p class="muted">Теги появятся после входа.</p></div>
+        </fieldset>
+        <label class="check"><input id="map-public" type="checkbox" data-auth="Публикация доступна после входа"> Публичная карта</label>
+        <button id="btn-duplicate" class="btn" type="button" data-auth="Дублирование доступно после входа">Дублировать</button>
+        <div id="inspector" hidden>
+          <h3>Объект</h3>
+          <label>Текст <input id="prop-text" maxlength="80"></label>
+          <label>Описание <textarea id="prop-desc" maxlength="400" placeholder="Всплывающая подсказка"></textarea></label>
+          <button id="prop-delete" class="btn danger" type="button">Удалить объект</button>
+        </div>
+        <ul class="legend">
+          <li><i style="background:#3e3a33"></i>стена</li>
+          <li><i style="background:#b3a184"></i>пол</li>
+          <li><i style="background:#8a5426"></i>дверь</li>
+          <li><i style="background:#a02020"></i>ловушка</li>
+          <li><i style="background:#ffd700"></i>клад</li>
+          <li><i style="background:#40a040"></i>монстр</li>
+          <li><i style="background:#ff4040"></i>босс</li>
+          <li><i style="background:#ffff80"></i>свет</li>
+          <li><i style="background:#fff"></i>лестница</li>
+        </ul>
+      </div>
+      <div data-panel="layers" hidden>
+        <div id="layer-list"></div>
+        <div class="row">
+          <select id="layer-kind">
+            <option value="tiles">Тайлы</option>
+            <option value="objects">Объекты</option>
+            <option value="notes">Заметки</option>
+          </select>
+          <button id="btn-add-layer" class="btn" type="button" data-auth="Слои доступны после входа">Добавить слой</button>
+        </div>
+        <p class="muted">Рисунок попадает в активный слой. Скрытый слой не виден. Заметки мастера пропадают в режиме игрока и по публичной ссылке.</p>
+      </div>
+      <div data-panel="grid" hidden>
+        <label class="check"><input id="grid-show" type="checkbox" checked data-auth="Настройка сетки доступна после входа"> Показывать сетку</label>
+        <label>Шаг клетки <input id="grid-cell" type="range" min="8" max="64" value="16" data-auth="Настройка сетки доступна после входа"> <span id="grid-cell-val">16</span></label>
+        <label>Смещение X <input id="grid-ox" type="range" min="-40" max="40" value="0" data-auth="Настройка сетки доступна после входа"> <span id="grid-ox-val">0</span></label>
+        <label>Смещение Y <input id="grid-oy" type="range" min="-40" max="40" value="0" data-auth="Настройка сетки доступна после входа"> <span id="grid-oy-val">0</span></label>
+        <label>Цвет <input id="grid-color" type="color" value="#d9c07a" data-auth="Настройка сетки доступна после входа"></label>
+      </div>
+      <div data-panel="gen" hidden>
+        <label>Ширина <input id="gen-w" type="number" min="20" max="64" value="40"></label>
+        <label>Высота <input id="gen-h" type="number" min="14" max="40" value="24"></label>
+        <label>Комнаты <input id="gen-rooms" type="number" min="2" max="16" value="8"></label>
+        <label>Мин. размер <input id="gen-min" type="number" min="3" max="12" value="4"></label>
+        <label>Макс. размер <input id="gen-max" type="number" min="3" max="14" value="8"></label>
+        <p id="gen-error" class="error"></p>
+        <button id="btn-gen" class="btn primary" type="button" data-auth="Генерация случайной карты доступна после входа">Сгенерировать</button>
+        <p class="muted">Сначала откроется предпросмотр. В редактор карта попадёт после «Принять».</p>
+      </div>
+      <div data-panel="assets" hidden>
+        <label class="btn" data-auth="Загрузка текстур и спрайтов доступна после входа">Загрузить PNG или JPG
+          <input id="asset-file" type="file" accept="image/png,image/jpeg" hidden>
+        </label>
+        <p class="muted">До 1,5 МБ. Перетащите спрайт на карту или выберите его и кликните инструментом «Спрайт».</p>
+        <div id="asset-list"></div>
+      </div>
+    </aside>
+  </section>
+
+  <section id="view-library" class="view">
+    <div class="panel-head"><h2>Мои карты</h2></div>
+    <div class="library-layout">
+      <aside>
+        <button id="folder-all" class="btn side-nav active" type="button">Все карты</button>
+        <button id="folder-root" class="btn side-nav" type="button">Без папки</button>
+        <div id="library-folders"></div>
+        <form id="folder-form">
+          <input id="new-folder" maxlength="40" placeholder="Новая папка">
+          <button class="btn" type="submit">Создать папку</button>
+        </form>
+        <button id="tag-all" class="btn side-nav active" type="button">Все теги</button>
+        <div id="library-tags"></div>
+        <form id="tag-form">
+          <input id="new-tag" maxlength="24" placeholder="Новый тег">
+          <button class="btn" type="submit">Создать тег</button>
+        </form>
+      </aside>
+      <div id="library-maps" class="cards"></div>
+    </div>
+  </section>
+
+  <section id="view-gallery" class="view">
+    <div class="panel-head">
+      <h2>Галерея</h2>
+      <label>Сортировка
+        <select id="gallery-sort">
+          <option value="new">Сначала новые</option>
+          <option value="old">Сначала старые</option>
+        </select>
+      </label>
+    </div>
+    <div id="gallery-list" class="cards"></div>
+    <div id="gallery-detail" hidden>
+      <button id="gallery-back" class="btn" type="button">К галерее</button>
+      <h2 id="gallery-title"></h2>
+      <p id="gallery-author" class="muted"></p>
+      <div class="canvas-wrap"><canvas id="gallery-canvas"></canvas></div>
+      <h3>Комментарии</h3>
+      <div id="gallery-comments"></div>
+      <form id="comment-form">
+        <textarea id="comment-text" maxlength="1000" placeholder="Комментарий к карте"></textarea>
+        <button id="comment-send" class="btn primary" type="submit" data-auth="Комментарии доступны после входа">Отправить</button>
+      </form>
+    </div>
+  </section>
 </main>
 
-<!-- Подключаем наш генератор -->
+<div id="modal-auth" class="modal-back" hidden>
+  <form class="modal" id="auth-form">
+    <h2 id="auth-title">Вход</h2>
+    <p id="auth-message" class="muted"></p>
+    <label>Имя <input id="auth-username" required minlength="3" maxlength="32" autocomplete="username"></label>
+    <label>Пароль <input id="auth-password" type="password" required minlength="4" maxlength="128" autocomplete="current-password"></label>
+    <p id="auth-error" class="error" role="alert"></p>
+    <div class="row">
+      <button class="btn primary" id="auth-submit" type="submit">Войти</button>
+      <button class="btn" id="auth-close" type="button">Закрыть</button>
+    </div>
+    <button class="link" id="auth-mode" type="button">Создать аккаунт</button>
+  </form>
+</div>
+
+<div id="modal-export" class="modal-back" hidden>
+  <div class="modal">
+    <h2>Экспорт</h2>
+    <p class="muted">Без входа доступен PNG с водяным знаком. Высокое разрешение и файл без знака — после входа.</p>
+    <label class="check"><input id="export-notes" type="checkbox" data-auth="Экспорт заметок доступен после входа"> Включить заметки мастера</label>
+    <div class="row">
+      <button id="export-png" class="btn" type="button">PNG</button>
+      <button id="export-png2" class="btn" type="button" data-auth="Экспорт 2× доступен после входа">PNG 2×</button>
+      <button id="export-png4" class="btn" type="button" data-auth="Экспорт в 4K доступен после входа">PNG 4×</button>
+      <button id="export-jpg" class="btn" type="button" data-auth="Экспорт JPG без водяного знака доступен после входа">JPG</button>
+    </div>
+    <button id="export-close" class="btn" type="button">Закрыть</button>
+  </div>
+</div>
+
+<div id="modal-share" class="modal-back" hidden>
+  <div class="modal">
+    <h2>Ссылка для просмотра</h2>
+    <label class="check"><input id="share-public" type="checkbox"> Открыть публичный доступ</label>
+    <p class="muted">По ссылке карту можно открыть без входа и без редактирования. Заметки мастера туда не попадают. Если закрыть доступ, старая ссылка перестаёт открываться.</p>
+    <input id="share-link" readonly>
+    <div class="row">
+      <button id="share-copy" class="btn" type="button">Копировать</button>
+      <button id="share-close" class="btn" type="button">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-gen" class="modal-back" hidden>
+  <div class="modal wide">
+    <h2>Предпросмотр генерации</h2>
+    <div class="canvas-wrap"><canvas id="gen-canvas"></canvas></div>
+    <div class="row">
+      <button id="gen-accept" class="btn primary" type="button">Принять</button>
+      <button id="gen-cancel" class="btn" type="button">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<div id="tooltip" hidden></div>
 <script src="/js/bsp.js"></script>
-
-<script>
-/* ══════════════════════════════════════════════════════════════════
-   1. КОНСТАНТЫ И СОСТОЯНИЕ
-   ══════════════════════════════════════════════════════════════════ */
-const COLS = 64, ROWS = 32, CELL = 16;
-
-// Сопоставление строковых имен из bsp.js с числами и цветами
-const TILE_TYPES = {
-    'stone': 0, 'wall': 1, 'floor': 2, 'door': 3,
-    'trap': 4, 'treasure': 5, 'goblin': 6, 'boss': 7, 'light': 8, 'stairs': 9, 'empty': 0
-};
-
-const COLORS = {
-    0: '#26221b', // stone / empty
-    1: '#3e3a33', // wall
-    2: '#b3a184', // floor
-    3: '#8a5426', // door
-    4: '#a02020', // trap (красный)
-    5: '#ffd700', // treasure (золотой)
-    6: '#40a040', // goblin (зеленый)
-    7: '#ff4040', // boss (ярко-красный)
-    8: '#ffff80', // light (светло-желтый)
-    9: '#ffffff'  // stairs (белый)
-};
-
-const grid = new Uint8Array(COLS * ROWS);
-const idx = (x, y) => y * COLS + x;
-
-const canvas = document.getElementById('map');
-const ctx = canvas.getContext('2d');
-
-let currentTool = TILE_TYPES['wall'];
-let painting = false;
-let prevX = -1, prevY = -1;
-
-/* ══════════════════════════════════════════════════════════════════
-   2. ОТРИСОВКА
-   ══════════════════════════════════════════════════════════════════ */
-function draw() {
-  for (let y = 0; y < ROWS; y++) {
-    for (let x = 0; x < COLS; x++) {
-      ctx.fillStyle = COLORS[grid[idx(x, y)]] || COLORS[0];
-      ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
-    }
-  }
-  // Сетка поверх (опционально, можно закомментировать для чистоты)
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = 0; x <= COLS; x++) { ctx.moveTo(x * CELL + 0.5, 0); ctx.lineTo(x * CELL + 0.5, ROWS * CELL); }
-  for (let y = 0; y <= ROWS; y++) { ctx.moveTo(0, y * CELL + 0.5); ctx.lineTo(COLS * CELL, y * CELL + 0.5); }
-  ctx.stroke();
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   3. ВЫЗОВ ГЕНЕРАТОРА ИЗ bsp.js
-   ══════════════════════════════════════════════════════════════════ */
-function generateAndDraw() {
-    const config = {
-        width: COLS,
-        height: ROWS,
-        max_rooms: 12,
-        min_room_xy: 4,
-        max_room_xy: 10,
-        rooms_overlap: true,
-        random_connections: 1,
-        random_spurs: 0
-    };
-
-    // Вызываем функцию из bsp.js
-    const level2D = generateDungeonMap(config);
-
-    // Преобразуем 2D-массив строк в 1D-массив чисел для нашего Canvas
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            const tileName = level2D[y][x];
-            grid[idx(x, y)] = TILE_TYPES[tileName] !== undefined ? TILE_TYPES[tileName] : 0;
-        }
-    }
-    draw();
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   4. ВВОД: рисование мышью
-   ══════════════════════════════════════════════════════════════════ */
-function paintLine(x0, y0, x1, y1) {
-  let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
-  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
-  let err = dx - dy;
-  for (;;) {
-    if (x0 >= 0 && y0 >= 0 && x0 < COLS && y0 < ROWS) grid[idx(x0, y0)] = currentTool;
-    if (x0 === x1 && y0 === y1) break;
-    const e2 = 2 * err;
-    if (e2 > -dy) { err -= dy; x0 += sx; }
-    if (e2 < dx)  { err += dx; y0 += sy; }
-  }
-}
-
-canvas.addEventListener('pointerdown', (e) => {
-  painting = true;
-  const c = cellFromEvent(e);
-  prevX = c.x; prevY = c.y;
-  paintLine(prevX, prevY, prevX, prevY);
-  draw();
-  canvas.setPointerCapture(e.pointerId);
-});
-
-canvas.addEventListener('pointermove', (e) => {
-  const c = cellFromEvent(e);
-  document.getElementById('st-pos').textContent = `${c.x},${c.y}`;
-  if (painting) {
-    paintLine(prevX, prevY, c.x, c.y);
-    prevX = c.x; prevY = c.y;
-    draw();
-  }
-});
-
-canvas.addEventListener('pointerup', () => { painting = false; });
-canvas.addEventListener('pointerleave', () => { painting = false; document.getElementById('st-pos').textContent = '—'; });
-
-function cellFromEvent(e) {
-  const r = canvas.getBoundingClientRect();
-  const sx = canvas.width / r.width;
-  const sy = canvas.height / r.height;
-  const x = ((e.clientX - r.left) * sx / CELL) | 0;
-  const y = ((e.clientY - r.top)  * sy / CELL) | 0;
-  return { x: Math.max(0, Math.min(COLS - 1, x)), y: Math.max(0, Math.min(ROWS - 1, y)) };
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   5. UI: тулбар и кнопки
-   ══════════════════════════════════════════════════════════════════ */
-const TOOL_LABEL = { [TILE_TYPES['wall']]: 'стена', [TILE_TYPES['floor']]: 'пол', [TILE_TYPES['door']]: 'дверь', [TILE_TYPES['empty']]: 'стереть' };
-
-document.querySelectorAll('.toolbar .btn[data-tool]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.toolbar .btn[data-tool]').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentTool = TILE_TYPES[btn.dataset.tool];
-    document.getElementById('st-tool').textContent = TOOL_LABEL[currentTool] || btn.dataset.tool;
-  });
-});
-
-// Привязываем кнопку генерации к нашей новой функции
-document.getElementById('btn-gen').addEventListener('click', generateAndDraw);
-document.getElementById('btn-clear').addEventListener('click', () => { grid.fill(0); draw(); });
-
-// Генерируем карту сразу при загрузке страницы
-generateAndDraw();
-</script>
+<script src="/js/api.js"></script>
+<script src="/js/io.js"></script>
+<script src="/js/ui.js"></script>
+<script src="/js/main.js"></script>
 </body>
 </html>

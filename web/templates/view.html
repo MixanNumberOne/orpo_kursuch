@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Просмотр карты — Dungeon Map Builder</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="viewer" data-page="view" data-token="{{ token }}">
+<header>
+  <div class="brand">
+    <h1>Dungeon Map Builder</h1>
+    <p>Просмотр карты</p>
+  </div>
+  <a class="btn" href="/">В редактор</a>
+</header>
+<main>
+  <h2 id="view-title">Загрузка…</h2>
+  <p id="view-author" class="muted"></p>
+  <p id="view-message" class="error" hidden></p>
+  <div class="canvas-wrap"><canvas id="map"></canvas></div>
+  <p class="muted">Только просмотр, без редактирования.</p>
+</main>
+<script src="/js/api.js"></script>
+<script src="/js/io.js"></script>
+<script src="/js/main.js"></script>
+</body>
+</html>
