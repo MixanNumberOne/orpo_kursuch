@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dungeon Map Builder — dev-прототип</title>
+<title>Dungeon Map Builder — Слои</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #14100a; color: #e8e2d4; height: 100vh; display: flex; flex-direction: column; }
@@ -14,6 +14,7 @@
   .btn { padding: 6px 12px; border: 1px solid #4a3f2e; border-radius: 6px; background: #2a241a; color: inherit; cursor: pointer; font-size: 13px; }
   .btn:hover { background: #3a3120; }
   .btn.active { background: #6b5427; border-color: #a08030; box-shadow: 0 0 0 1px #a08030; }
+  .separator { opacity: .3; margin: 0 4px; user-select: none; }
   main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; overflow: auto; }
   #canvas-wrap { background: #201b12; border: 1px solid #4a3f2e; border-radius: 6px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
   canvas { display: block; max-width: 100%; height: auto; cursor: crosshair; touch-action: none; image-rendering: pixelated; }
@@ -25,79 +26,257 @@
 
 <header>
   <h1>⚔ DUNGEON MAP BUILDER</h1>
-  <span class="tag">dev-прототип</span>
+  <span class="tag">Слои: Ландшафт + Объекты</span>
   <div class="toolbar">
-    <button class="btn active" data-tool="wall">🖌 Стена</button>
-    <button class="btn" data-tool="floor">🪣 Пол</button>
-    <button class="btn" data-tool="door">🚪 Дверь</button>
-    <button class="btn" data-tool="empty">🧹 Стереть</button>
-    <span style="opacity:.4">|</span>
+    <!-- Базовый слой -->
+    <button class="btn active" data-tool="wall" data-layer="base">🧱 Стена</button>
+    <button class="btn" data-tool="floor" data-layer="base">🟫 Пол</button>
+    <button class="btn" data-tool="stone" data-layer="base">⬛ Пусто</button>
+    <span class="separator">|</span>
+    <!-- Слой объектов -->
+    <button class="btn" data-tool="door" data-layer="object">🚪 Дверь</button>
+    <button class="btn" data-tool="trap" data-layer="object">🔺 Ловушка</button>
+    <button class="btn" data-tool="treasure" data-layer="object">💰 Сокров.</button>
+    <button class="btn" data-tool="goblin" data-layer="object">👺 Гоблин</button>
+    <button class="btn" data-tool="boss" data-layer="object">👹 Босс</button>
+    <button class="btn" data-tool="stairs" data-layer="object">🪜 Лестница</button>
+    <span class="separator">|</span>
+    <!-- Действия -->
+    <button class="btn" data-tool="empty" data-layer="object">🧹 Ластик</button>
     <button class="btn" id="btn-gen">⚙ Сгенерировать</button>
-    <button class="btn" id="btn-clear">🗑 Очистить</button>
+    <button class="btn" id="btn-clear">🗑 Очистить всё</button>
   </div>
 </header>
 
 <main>
   <div id="canvas-wrap">
-    <!-- CELL = 16px для лучшей видимости мелких объектов, сетка 64x32 => 1024x512 -->
     <canvas id="map" width="1024" height="512"></canvas>
   </div>
   <div id="statusbar">
-    <span class="badge">инструмент: <b id="st-tool">стена</b></span>
+    <span class="badge">инструмент: <b id="st-tool">Стена</b></span>
+    <span class="badge">слой: <b id="st-layer">Ландшафт</b></span>
     <span class="badge">курсор: <span id="st-pos">—</span></span>
   </div>
 </main>
 
-<!-- Подключаем наш генератор -->
-<script src="/js/bsp.js"></script>
-
 <script>
 /* ══════════════════════════════════════════════════════════════════
-   1. КОНСТАНТЫ И СОСТОЯНИЕ
+   1. ГЕНЕРАТОР (Возвращает только базовый слой: stone, floor, wall)
+   ══════════════════════════════════════════════════════════════════ */
+const CHARACTER_TILES = {
+    'stone': 'stone', 'floor': 'floor', 'wall': 'wall', 'trap': 'trap',
+    'treasure': 'treasure', 'goblin': 'goblin', 'boss': 'boss', 'light': 'light', 'stairs': 'stairs'
+};
+
+function randint(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+class Generator {
+    constructor(width, height, max_rooms, min_room_xy, max_room_xy, rooms_overlap, random_connections, random_spurs, tiles, max_skew = 3) {
+        this.width = width;
+        this.height = height;
+        this.max_rooms = max_rooms;
+        this.min_room_xy = min_room_xy;
+        this.max_room_xy = max_room_xy;
+        this.rooms_overlap = rooms_overlap;
+        this.random_connections = random_connections;
+        this.random_spurs = random_spurs;
+        this.tiles = tiles;
+        this.max_skew = max_skew;
+
+        this.level = [];
+        this.room_list = [];
+        this.corridor_list = [];
+    }
+
+    gen_room() {
+        const w = randint(this.min_room_xy, this.max_room_xy);
+        const h = randint(this.min_room_xy, this.max_room_xy);
+        const skew = randint(-this.max_skew, this.max_skew);
+        const shift_down = (h - 1) * skew;
+        let min_x = 1, max_x = this.width - w - 1;
+
+        if (shift_down > 0) max_x -= shift_down;
+        else min_x -= shift_down;
+
+        if (min_x > max_x) {
+            min_x = 1;
+            max_x = Math.max(1, this.width - w - 1);
+        }
+
+        return [randint(min_x, max_x), randint(1, this.height - h - 1), w, h, skew];
+    }
+
+    room_overlapping(room, room_list) {
+        const [x, y, w, h, skew] = room;
+        const shift_down = (h - 1) * skew;
+        const min_x = x + Math.min(0, shift_down);
+        const max_x = x + w - 1 + Math.max(0, shift_down);
+
+        for (const [cx, cy, cw, ch, cskew] of room_list) {
+            const c_shift = (ch - 1) * cskew;
+            const c_min_x = cx + Math.min(0, c_shift);
+            const c_max_x = cx + cw - 1 + Math.max(0, c_shift);
+
+            if (min_x < c_max_x + 1 && max_x + 1 > c_min_x &&
+                y < cy + ch && y + h > cy) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    get_random_floor_point(room) {
+        const [x, y, w, h, skew] = room;
+        for (let tries = 0; tries < 20; tries++) {
+            const ry = randint(y, y + h - 1);
+            const row_skew = (ry - y) * skew;
+            const rx = randint(x + row_skew, x + row_skew + w - 1);
+            if (this.level[ry] && this.level[ry][rx] === 'floor') return [rx, ry];
+        }
+        return [x + Math.floor(w / 2) + Math.floor(h / 2) * skew, y + Math.floor(h / 2)];
+    }
+
+    corridor_between_points(x1, y1, x2, y2) {
+        if (x1 === x2 || y1 === y2) return [[x1, y1], [x2, y2]];
+        const join = Math.random() < 0.5 ? 'top' : 'bottom';
+        return join === 'top' ? [[x1, y1], [x1, y2], [x2, y2]] : [[x1, y1], [x2, y1], [x2, y2]];
+    }
+
+    join_rooms(room_1, room_2) {
+        const p1 = this.get_random_floor_point(room_1);
+        const p2 = this.get_random_floor_point(room_2);
+        this.corridor_list.push(this.corridor_between_points(p1[0], p1[1], p2[0], p2[1]));
+    }
+
+    gen_level() {
+        this.level = Array.from({ length: this.height }, () => new Array(this.width).fill('stone'));
+        this.room_list = [];
+        this.corridor_list = [];
+        const max_iters = this.max_rooms * 10;
+
+        for (let a = 0; a < max_iters; a++) {
+            const tmp_room = this.gen_room();
+            if (this.rooms_overlap || this.room_list.length === 0 || !this.room_overlapping(tmp_room, this.room_list)) {
+                this.room_list.push(tmp_room);
+            }
+            if (this.room_list.length >= this.max_rooms) break;
+        }
+
+        for (let a = 0; a < this.room_list.length - 1; a++) this.join_rooms(this.room_list[a], this.room_list[a + 1]);
+        for (let a = 0; a < this.random_connections; a++) {
+            this.join_rooms(this.room_list[randint(0, this.room_list.length - 1)], this.room_list[randint(0, this.room_list.length - 1)]);
+        }
+        for (let a = 0; a < this.random_spurs; a++) {
+            this.join_rooms([randint(2, this.width - 3), randint(2, this.height - 3), 1, 1, 0], this.room_list[randint(0, this.room_list.length - 1)]);
+        }
+
+        for (const [x, y, w, h, skew] of this.room_list) {
+            for (let c = 0; c < h; c++) {
+                for (let b = 0; b < w; b++) {
+                    this.level[y + c][x + (c * skew) + b] = 'floor';
+                }
+            }
+        }
+
+        for (const corridor of this.corridor_list) {
+            for (let i = 0; i < corridor.length - 1; i++) {
+                const [x1, y1] = corridor[i], [x2, y2] = corridor[i + 1];
+                for (let w = 0; w < Math.abs(x1 - x2) + 1; w++) {
+                    for (let h = 0; h < Math.abs(y1 - y2) + 1; h++) {
+                        const cy = Math.min(y1, y2) + h, cx = Math.min(x1, x2) + w;
+                        if (this.level[cy] && this.level[cy][cx] === 'stone') this.level[cy][cx] = 'floor';
+                    }
+                }
+            }
+        }
+
+        for (let row = 1; row < this.height - 1; row++) {
+            for (let col = 1; col < this.width - 1; col++) {
+                if (this.level[row][col] === 'floor') {
+                    for (let r = row - 1; r <= row + 1; r++) {
+                        for (let c = col - 1; c <= col + 1; c++) {
+                            if (this.level[r][c] === 'stone') this.level[r][c] = 'wall';
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function generateDungeonMap(config) {
+    const gen = new Generator(config.width, config.height, config.max_rooms, config.min_room_xy, config.max_room_xy, config.rooms_overlap, config.random_connections, config.random_spurs, CHARACTER_TILES, config.max_skew || 3);
+    gen.gen_level();
+
+    // Возвращаем структуру из двух слоев
+    const objectLayer = Array.from({ length: gen.height }, () => new Array(gen.width).fill('empty'));
+    return { base: gen.level, objects: objectLayer };
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   2. СИСТЕМА СЛОЕВ И ОТРИСОВКА
    ══════════════════════════════════════════════════════════════════ */
 const COLS = 64, ROWS = 32, CELL = 16;
 
-// Сопоставление строковых имен из bsp.js с числами и цветами
+// 0-2: Базовый слой, 3+: Слой объектов, 99: Специальный маркер ластика
 const TILE_TYPES = {
-    'stone': 0, 'wall': 1, 'floor': 2, 'door': 3,
-    'trap': 4, 'treasure': 5, 'goblin': 6, 'boss': 7, 'light': 8, 'stairs': 9, 'empty': 0
+    'stone': 0, 'wall': 1, 'floor': 2,
+    'door': 3, 'trap': 4, 'treasure': 5, 'goblin': 6, 'boss': 7, 'light': 8, 'stairs': 9,
+    'empty': 99 // Специальный ID для ластика
 };
 
 const COLORS = {
-    0: '#26221b', // stone / empty
-    1: '#3e3a33', // wall
-    2: '#b3a184', // floor
-    3: '#8a5426', // door
-    4: '#a02020', // trap (красный)
-    5: '#ffd700', // treasure (золотой)
-    6: '#40a040', // goblin (зеленый)
-    7: '#ff4040', // boss (ярко-красный)
-    8: '#ffff80', // light (светло-желтый)
-    9: '#ffffff'  // stairs (белый)
+    0: '#26221b', 1: '#3e3a33', 2: '#b3a184', 3: '#8a5426',
+    4: '#a02020', 5: '#ffd700', 6: '#40a040', 7: '#ff4040', 8: '#ffff80', 9: '#ffffff'
 };
 
-const grid = new Uint8Array(COLS * ROWS);
+const TOOL_LABELS = {
+    'stone': 'Пусто (Камень)', 'wall': 'Стена', 'floor': 'Пол',
+    'door': 'Дверь', 'trap': 'Ловушка', 'treasure': 'Сокровище',
+    'goblin': 'Гоблин', 'boss': 'Босс', 'stairs': 'Лестница', 'empty': 'Ластик (объекты)'
+};
+
+// ДВА НЕЗАВИСИМЫХ СЛОЯ
+const gridBase = new Uint8Array(COLS * ROWS);
+const gridObjects = new Uint8Array(COLS * ROWS);
 const idx = (x, y) => y * COLS + x;
 
 const canvas = document.getElementById('map');
 const ctx = canvas.getContext('2d');
 
 let currentTool = TILE_TYPES['wall'];
+let currentLayer = 'base';
 let painting = false;
 let prevX = -1, prevY = -1;
 
-/* ══════════════════════════════════════════════════════════════════
-   2. ОТРИСОВКА
-   ══════════════════════════════════════════════════════════════════ */
 function draw() {
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
-      ctx.fillStyle = COLORS[grid[idx(x, y)]] || COLORS[0];
+      const i = idx(x, y);
+
+      // 1. Рисуем базовый слой (ландшафт)
+      ctx.fillStyle = COLORS[gridBase[i]] || COLORS[0];
       ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+
+      // 2. Рисуем слой объектов ПОВЕРХ базового
+      if (gridObjects[i] !== 0) {
+        ctx.fillStyle = COLORS[gridObjects[i]];
+        // Рисуем объект чуть меньше клетки, чтобы было видно пол под ним
+        ctx.fillRect(x * CELL + 3, y * CELL + 3, CELL - 6, CELL - 6);
+
+        // Добавляем легкую обводку для читаемости объектов
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x * CELL + 3.5, y * CELL + 3.5, CELL - 7, CELL - 7);
+      }
     }
   }
-  // Сетка поверх (опционально, можно закомментировать для чистоты)
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+
+  // Сетка
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x = 0; x <= COLS; x++) { ctx.moveTo(x * CELL + 0.5, 0); ctx.lineTo(x * CELL + 0.5, ROWS * CELL); }
@@ -105,43 +284,45 @@ function draw() {
   ctx.stroke();
 }
 
+
 /* ══════════════════════════════════════════════════════════════════
-   3. ВЫЗОВ ГЕНЕРАТОРА ИЗ bsp.js
+   3. ГЕНЕРАЦИЯ И ВВОД
    ══════════════════════════════════════════════════════════════════ */
 function generateAndDraw() {
     const config = {
-        width: COLS,
-        height: ROWS,
-        max_rooms: 12,
-        min_room_xy: 4,
-        max_room_xy: 10,
-        rooms_overlap: true,
-        random_connections: 1,
-        random_spurs: 0
+        width: COLS, height: ROWS, max_rooms: 12, min_room_xy: 4, max_room_xy: 9,
+        rooms_overlap: false, random_connections: 2, random_spurs: 3, max_skew: 3
     };
 
-    // Вызываем функцию из bsp.js
-    const level2D = generateDungeonMap(config);
+    // Получаем объект { base: [...], objects: [...] }
+    const dungeonData = generateDungeonMap(config);
 
-    // Преобразуем 2D-массив строк в 1D-массив чисел для нашего Canvas
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
-            const tileName = level2D[y][x];
-            grid[idx(x, y)] = TILE_TYPES[tileName] !== undefined ? TILE_TYPES[tileName] : 0;
+            const i = idx(x, y);
+
+            // ВАЖНО: Обновляем ТОЛЬКО базовый слой.
+            // Слой объектов (gridObjects) остается нетронутым!
+            const baseTile = dungeonData.base[y][x];
+            gridBase[i] = TILE_TYPES[baseTile] !== undefined ? TILE_TYPES[baseTile] : 0;
         }
     }
     draw();
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   4. ВВОД: рисование мышью
-   ══════════════════════════════════════════════════════════════════ */
-function paintLine(x0, y0, x1, y1) {
+function paintLine(x0, y0, x1, y1, tool, layer) {
   let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
   const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
   let err = dx - dy;
+
+  // Определяем, в какой массив писать и какое значение:
+  const targetGrid = (layer === 'object') ? gridObjects : gridBase;
+  const valueToWrite = (tool === TILE_TYPES['empty']) ? 0 : tool; // Ластик пишет 0
+
   for (;;) {
-    if (x0 >= 0 && y0 >= 0 && x0 < COLS && y0 < ROWS) grid[idx(x0, y0)] = currentTool;
+    if (x0 >= 0 && y0 >= 0 && x0 < COLS && y0 < ROWS) {
+      targetGrid[idx(x0, y0)] = valueToWrite;
+    }
     if (x0 === x1 && y0 === y1) break;
     const e2 = 2 * err;
     if (e2 > -dy) { err -= dy; x0 += sx; }
@@ -153,7 +334,7 @@ canvas.addEventListener('pointerdown', (e) => {
   painting = true;
   const c = cellFromEvent(e);
   prevX = c.x; prevY = c.y;
-  paintLine(prevX, prevY, prevX, prevY);
+  paintLine(prevX, prevY, prevX, prevY, currentTool, currentLayer);
   draw();
   canvas.setPointerCapture(e.pointerId);
 });
@@ -162,7 +343,7 @@ canvas.addEventListener('pointermove', (e) => {
   const c = cellFromEvent(e);
   document.getElementById('st-pos').textContent = `${c.x},${c.y}`;
   if (painting) {
-    paintLine(prevX, prevY, c.x, c.y);
+    paintLine(prevX, prevY, c.x, c.y, currentTool, currentLayer);
     prevX = c.x; prevY = c.y;
     draw();
   }
@@ -173,32 +354,39 @@ canvas.addEventListener('pointerleave', () => { painting = false; document.getEl
 
 function cellFromEvent(e) {
   const r = canvas.getBoundingClientRect();
-  const sx = canvas.width / r.width;
-  const sy = canvas.height / r.height;
+  const sx = canvas.width / r.width, sy = canvas.height / r.height;
   const x = ((e.clientX - r.left) * sx / CELL) | 0;
   const y = ((e.clientY - r.top)  * sy / CELL) | 0;
   return { x: Math.max(0, Math.min(COLS - 1, x)), y: Math.max(0, Math.min(ROWS - 1, y)) };
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   5. UI: тулбар и кнопки
-   ══════════════════════════════════════════════════════════════════ */
-const TOOL_LABEL = { [TILE_TYPES['wall']]: 'стена', [TILE_TYPES['floor']]: 'пол', [TILE_TYPES['door']]: 'дверь', [TILE_TYPES['empty']]: 'стереть' };
 
+/* ══════════════════════════════════════════════════════════════════
+   4. UI ОБРАБОТЧИКИ
+   ══════════════════════════════════════════════════════════════════ */
 document.querySelectorAll('.toolbar .btn[data-tool]').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.toolbar .btn[data-tool]').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
+
     currentTool = TILE_TYPES[btn.dataset.tool];
-    document.getElementById('st-tool').textContent = TOOL_LABEL[currentTool] || btn.dataset.tool;
+    currentLayer = btn.dataset.layer;
+
+    document.getElementById('st-tool').textContent = TOOL_LABELS[btn.dataset.tool] || btn.dataset.tool;
+    document.getElementById('st-layer').textContent = currentLayer === 'object' ? 'Объекты' : 'Ландшафт';
   });
 });
 
-// Привязываем кнопку генерации к нашей новой функции
 document.getElementById('btn-gen').addEventListener('click', generateAndDraw);
-document.getElementById('btn-clear').addEventListener('click', () => { grid.fill(0); draw(); });
 
-// Генерируем карту сразу при загрузке страницы
+document.getElementById('btn-clear').addEventListener('click', () => {
+    // Очищаем ОБА слоя при полном сбросе
+    gridBase.fill(0);
+    gridObjects.fill(0);
+    draw();
+});
+
+// Первая генерация при загрузке
 generateAndDraw();
 </script>
 </body>
