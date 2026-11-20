@@ -119,9 +119,11 @@ const IO = (() => {
     const specialById = Object.fromEntries(SPECIALS.map((item) => [item.id, item]));
     const chosen = (options && Array.isArray(options.specials) ? options.specials : []).filter((id) => specialById[id]);
     const roomMeta = rooms.map((room) => ({ x: room.x, y: room.y, w: room.w, h: room.h, wall: CORRIDOR.wall, floor: CORRIDOR.floor, special: null }));
-    shuffle(roomMeta.map((_, index) => index)).forEach((index, order) => {
-      if (order < chosen.length) roomMeta[index].special = chosen[order];
-    });
+    if (chosen.length) {
+      shuffle(roomMeta.map((_, index) => index)).forEach((index, position) => {
+        roomMeta[index].special = chosen[position % chosen.length];
+      });
+    }
     for (const room of roomMeta) {
       if (room.special) {
         room.wall = specialById[room.special].wall;
