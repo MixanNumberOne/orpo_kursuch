@@ -1,0 +1,11 @@
+Kenney — Tiny Dungeon
+Автор: Kenney (www.kenney.nl)
+Лицензия: CC0 1.0, общественное достояние.
+https://kenney.nl/assets/tiny-dungeon
+https://opengameart.org/content/tiny-dungeon
+
+Из набора взяты стены, полы, дверь, сундуки, противники,
+декор и одна наковальня (исходные файлы tile_XXXX.png).
+
+water-*.png, lava-*.png, trap-*.png, anvil-1.png и anvil-2.png
+нарисованы для этого проекта: схематичные тайлы 16×16.

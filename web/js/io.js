@@ -1,12 +1,42 @@
 const IO = (() => {
-  const COLORS = {
-    0: "#26221b", 1: "#3e3a33", 2: "#b3a184", 3: "#8a5426", 4: "#a02020",
-    5: "#ffd700", 6: "#40a040", 7: "#ff4040", 8: "#ffff80", 9: "#ffffff",
+  const COLORS = { 0: "#26221b" };
+  const MATERIALS = {
+    walls: [
+      { name: "Кирпич", src: "/static/textures/wall-0.png", color: "#8b93a6" },
+      { name: "Камень", src: "/static/textures/wall-1.png", color: "#7e8a9c" },
+      { name: "Плитняк", src: "/static/textures/wall-2.png", color: "#6d7888" },
+      { name: "Кладка", src: "/static/textures/wall-3.png", color: "#5e6878" },
+      { name: "Доски", src: "/static/textures/wall-4.png", color: "#8d7a62" },
+    ],
+    floors: [
+      { name: "Земля", src: "/static/textures/floor-0.png", color: "#6b4034" },
+      { name: "Каменистая земля", src: "/static/textures/floor-1.png", color: "#5a3c32" },
+      { name: "Плитка", src: "/static/textures/floor-2.png", color: "#c4a888" },
+      { name: "Песок", src: "/static/textures/floor-3.png", color: "#d7b07a" },
+      { name: "Красная земля", src: "/static/textures/floor-4.png", color: "#8a5044" },
+    ],
   };
-  const TILE_CODE = {
-    stone: 0, empty: 0, wall: 1, floor: 2, door: 3, trap: 4,
-    treasure: 5, goblin: 6, boss: 7, light: 8, stairs: 9,
+  const DOOR = { src: "/static/textures/door.png", color: "#8a5426" };
+  const OBJECTS = {
+    chest: { name: "Сундук", variants: ["/static/textures/chest-0.png", "/static/textures/chest-1.png", "/static/textures/chest-2.png"] },
+    enemy: { name: "Противник", variants: ["/static/textures/enemy-0.png", "/static/textures/enemy-1.png", "/static/textures/enemy-2.png"] },
+    trap: { name: "Ловушка", variants: ["/static/textures/trap-0.png", "/static/textures/trap-1.png", "/static/textures/trap-2.png"] },
+    water: { name: "Вода", variants: ["/static/textures/water-0.png", "/static/textures/water-1.png", "/static/textures/water-2.png"] },
+    lava: { name: "Лава", variants: ["/static/textures/lava-0.png", "/static/textures/lava-1.png", "/static/textures/lava-2.png"] },
+    anvil: { name: "Наковальня", variants: ["/static/textures/anvil-0.png", "/static/textures/anvil-1.png", "/static/textures/anvil-2.png"] },
+    decor: { name: "Декор", variants: ["/static/textures/decor-0.png", "/static/textures/decor-1.png", "/static/textures/decor-2.png"] },
   };
+  const SPECIALS = [
+    { id: "treasury", label: "Сокровищница — только сундуки", object: "chest", wall: 0, floor: 3 },
+    { id: "lair", label: "Логово — только противники", object: "enemy", wall: 1, floor: 0 },
+    { id: "traps", label: "Зал ловушек — только ловушки", object: "trap", wall: 3, floor: 2 },
+    { id: "cistern", label: "Цистерна — только вода", object: "water", wall: 2, floor: 2 },
+    { id: "lava", label: "Лавовая яма — только лава", object: "lava", wall: 1, floor: 4 },
+    { id: "smithy", label: "Кузница — только наковальни", object: "anvil", wall: 3, floor: 1 },
+    { id: "hall", label: "Украшенный зал — только декор", object: "decor", wall: 4, floor: 3 },
+  ];
+  const ROOM_PAIRS = [[0, 1], [1, 0], [2, 2], [3, 4], [4, 3]];
+  const CORRIDOR = { wall: 1, floor: 2 };
   const images = new Map();
   const srcStore = new Map();
   let armed = null;
@@ -38,6 +68,142 @@ const IO = (() => {
     return Math.min(max, Math.max(min, number));
   }
 
+  function migrateTile(tile) {
+    if (!Number.isInteger(tile)) return 0;
+    if (tile === 0 || tile === 3) return tile;
+    if (tile === 1) return 100;
+    if (tile === 2 || (tile >= 4 && tile <= 9)) return 200;
+    if (tile >= 100 && tile < 100 + MATERIALS.walls.length) return tile;
+    if (tile >= 200 && tile < 200 + MATERIALS.floors.length) return tile;
+    return 0;
+  }
+
+  function shuffle(list) {
+    const copy = list.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const swap = copy[i];
+      copy[i] = copy[j];
+      copy[j] = swap;
+    }
+    return copy;
+  }
+
+  function roomCells(room, tiles, cols, rows) {
+    const cells = [];
+    const x1 = room.x + room.w - 1;
+    const y1 = room.y + room.h - 1;
+    const inset = room.w >= 3 && room.h >= 3;
+    for (let y = room.y; y <= y1; y += 1) {
+      for (let x = room.x; x <= x1; x += 1) {
+        if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+        if ((tiles[y * cols + x] || 0) < 200) continue;
+        if (inset && (x === room.x || y === room.y || x === x1 || y === y1)) continue;
+        cells.push({ x, y });
+      }
+    }
+    return cells;
+  }
+
+  function objectQuota(type, total, special) {
+    if (!special) return Math.min(2, Math.max(1, Math.ceil(total / 8)));
+    if (type === "water" || type === "lava") return Math.max(1, Math.min(total, Math.round(total * 0.55)));
+    if (type === "decor" || type === "enemy" || type === "trap") return Math.max(1, Math.min(5, Math.ceil(total / 3)));
+    return Math.max(1, Math.min(3, Math.ceil(total / 4)));
+  }
+
+  function furnishDungeon(level, rooms, options) {
+    const rows = level.length;
+    const cols = level[0].length;
+    const withObjects = !!(options && options.withObjects);
+    const specialById = Object.fromEntries(SPECIALS.map((item) => [item.id, item]));
+    const chosen = (options && Array.isArray(options.specials) ? options.specials : []).filter((id) => specialById[id]);
+    const roomMeta = rooms.map((room) => ({ x: room.x, y: room.y, w: room.w, h: room.h, wall: CORRIDOR.wall, floor: CORRIDOR.floor, special: null }));
+    shuffle(roomMeta.map((_, index) => index)).forEach((index, order) => {
+      if (order < chosen.length) roomMeta[index].special = chosen[order];
+    });
+    for (const room of roomMeta) {
+      if (room.special) {
+        room.wall = specialById[room.special].wall;
+        room.floor = specialById[room.special].floor;
+      } else {
+        const pair = ROOM_PAIRS[Math.floor(Math.random() * ROOM_PAIRS.length)];
+        room.wall = pair[0];
+        room.floor = pair[1];
+      }
+    }
+    const tiles = Array(cols * rows).fill(0);
+    const owner = Array(cols * rows).fill(-1);
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        if (level[y][x] === "floor") tiles[y * cols + x] = 200 + CORRIDOR.floor;
+      }
+    }
+    roomMeta.forEach((room, index) => {
+      for (let y = room.y; y < room.y + room.h; y += 1) {
+        for (let x = room.x; x < room.x + room.w; x += 1) {
+          if (y < 0 || x < 0 || y >= rows || x >= cols) continue;
+          if (level[y][x] !== "floor") continue;
+          tiles[y * cols + x] = 200 + room.floor;
+          owner[y * cols + x] = index;
+        }
+      }
+    });
+    const around = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        if (level[y][x] !== "wall") continue;
+        const votes = new Map();
+        for (const [dx, dy] of around) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+          const id = owner[ny * cols + nx];
+          if (id >= 0) votes.set(id, (votes.get(id) || 0) + 1);
+        }
+        let best = -1;
+        let bestN = 0;
+        for (const [id, count] of votes) {
+          if (count > bestN || (count === bestN && (best < 0 || id < best))) {
+            best = id;
+            bestN = count;
+          }
+        }
+        tiles[y * cols + x] = 100 + (best >= 0 ? roomMeta[best].wall : CORRIDOR.wall);
+      }
+    }
+    const items = [];
+    if (withObjects) {
+      const used = new Set();
+      for (const room of roomMeta) {
+        const cells = shuffle(roomCells(room, tiles, cols, rows));
+        if (!cells.length) continue;
+        const types = room.special
+          ? [specialById[room.special].object]
+          : shuffle(Object.keys(OBJECTS)).slice(0, Math.random() < 0.45 ? 2 : 1);
+        for (const type of types) {
+          const spec = OBJECTS[type];
+          const quota = objectQuota(type, cells.length, !!room.special);
+          let placed = 0;
+          for (const cell of cells) {
+            if (placed >= quota || items.length >= 400) break;
+            const key = `${cell.x},${cell.y}`;
+            if (used.has(key)) continue;
+            used.add(key);
+            const variant = Math.floor(Math.random() * spec.variants.length);
+            items.push({
+              id: uid(), kind: "sprite", x: cell.x, y: cell.y, w: 1, h: 1,
+              src: spec.variants[variant], name: spec.name, text: "", description: spec.name,
+              objectType: type, variant,
+            });
+            placed += 1;
+          }
+        }
+      }
+    }
+    return { tiles, items, rooms: roomMeta };
+  }
+
   function normalize(raw) {
     const source = raw || {};
     const cols = clampInt(source.cols, 8, 96, 40);
@@ -64,7 +230,7 @@ const IO = (() => {
       if (kind === "tiles") {
         const tiles = Array.isArray(layer.tiles) ? layer.tiles.slice(0, cols * rows) : [];
         while (tiles.length < cols * rows) tiles.push(0);
-        base.tiles = tiles.map((tile) => (Number.isInteger(tile) && tile >= 0 && tile <= 9 ? tile : 0));
+        base.tiles = tiles.map(migrateTile);
       } else {
         base.items = (Array.isArray(layer.items) ? layer.items : []).map((item) => ({
           id: item.id || uid(),
@@ -79,6 +245,8 @@ const IO = (() => {
           text: item.text || "",
           description: item.description || "",
           color: item.color || "#f3e6c0",
+          objectType: OBJECTS[item.objectType] ? item.objectType : "",
+          variant: Number.isInteger(item.variant) && item.variant >= 0 && item.variant < 8 ? item.variant : 0,
         }));
       }
       doc.layers.push(base);
@@ -137,6 +305,9 @@ const IO = (() => {
     doc.grid = data.grid;
     doc.activeLayerId = data.activeLayerId;
     doc.layers = data.layers;
+    for (const layer of doc.layers) {
+      if (layer.kind === "tiles" && Array.isArray(layer.tiles)) layer.tiles = layer.tiles.map(migrateTile);
+    }
     restoreSources(doc);
   }
 
@@ -200,15 +371,18 @@ const IO = (() => {
     return null;
   }
 
+  function freshImage(src, redraw) {
+    const image = new Image();
+    images.set(src, image);
+    image.onload = () => { if (redraw) redraw(); };
+    image.src = src;
+    return image;
+  }
+
   function readyImage(src, redraw) {
     if (!src) return null;
     let image = images.get(src);
-    if (!image) {
-      image = new Image();
-      images.set(src, image);
-      image.onload = () => { if (redraw) redraw(); };
-      image.src = src;
-    }
+    if (!image || !image.src || (image.complete && !image.naturalWidth)) image = freshImage(src, redraw);
     return image.complete && image.naturalWidth ? image : null;
   }
 
@@ -216,34 +390,54 @@ const IO = (() => {
     return new Promise((resolve) => {
       if (!src) { resolve(null); return; }
       let image = images.get(src);
-      if (!image) {
-        image = new Image();
-        images.set(src, image);
-      }
-      if (image.complete) { resolve(image.naturalWidth ? image : null); return; }
+      if (!image || !image.src || (image.complete && !image.naturalWidth)) image = freshImage(src);
+      if (image.complete && image.naturalWidth) { resolve(image); return; }
       let settled = false;
       const done = () => { if (!settled) { settled = true; resolve(image.naturalWidth ? image : null); } };
       image.addEventListener("load", done, { once: true });
       image.addEventListener("error", done, { once: true });
-      if (!image.src) image.src = src;
+      if (image.complete) done();
     });
   }
 
+  function textureUrls() {
+    const urls = [DOOR.src];
+    for (const mat of MATERIALS.walls) urls.push(mat.src);
+    for (const mat of MATERIALS.floors) urls.push(mat.src);
+    for (const spec of Object.values(OBJECTS)) urls.push(...spec.variants);
+    return urls;
+  }
+
   function preload(doc) {
-    const jobs = [];
-    for (const layer of doc.layers) {
-      for (const item of layer.items || []) if (item.src) jobs.push(loadImage(item.src));
+    const jobs = textureUrls().map(loadImage);
+    if (doc) {
+      for (const layer of doc.layers) {
+        for (const item of layer.items || []) if (item.src) jobs.push(loadImage(item.src));
+      }
     }
     return Promise.all(jobs);
   }
 
-  function drawTiles(ctx, layer, cols, rows, cell, paintStone) {
+  function tileVisual(tile) {
+    const code = migrateTile(tile);
+    if (code === 3) return DOOR;
+    if (code >= 100 && code < 200) return MATERIALS.walls[code - 100] || MATERIALS.walls[0];
+    if (code >= 200) return MATERIALS.floors[code - 200] || MATERIALS.floors[0];
+    return { color: COLORS[0] };
+  }
+
+  function drawTiles(ctx, layer, cols, rows, cell, paintStone, redraw) {
     for (let y = 0; y < rows; y += 1) {
       for (let x = 0; x < cols; x += 1) {
         const tile = layer.tiles[y * cols + x] || 0;
         if (!tile && !paintStone) continue;
-        ctx.fillStyle = COLORS[tile] || COLORS[0];
-        ctx.fillRect(x * cell, y * cell, cell, cell);
+        const visual = tileVisual(tile);
+        const image = visual.src ? readyImage(visual.src, redraw) : null;
+        if (image) ctx.drawImage(image, x * cell, y * cell, cell, cell);
+        else {
+          ctx.fillStyle = visual.color || COLORS[0];
+          ctx.fillRect(x * cell, y * cell, cell, cell);
+        }
       }
     }
   }
@@ -278,13 +472,14 @@ const IO = (() => {
     canvas.width = Math.max(1, Math.round(doc.cols * cell));
     canvas.height = Math.max(1, Math.round(doc.rows * cell));
     const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = COLORS[0];
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     let paintedStone = false;
     for (const layer of doc.layers) {
       if (!layer.visible || (opts.player && layer.kind === "notes")) continue;
       if (layer.kind === "tiles") {
-        drawTiles(ctx, layer, doc.cols, doc.rows, cell, !paintedStone);
+        drawTiles(ctx, layer, doc.cols, doc.rows, cell, !paintedStone, opts.redraw);
         paintedStone = true;
       } else if (layer.items) {
         for (const item of layer.items) drawItem(ctx, item, cell, opts.redraw);
@@ -347,7 +542,7 @@ const IO = (() => {
   }
 
   return {
-    TILE_CODE, uid, newDocument, normalize, remember, arm, commit, undo, redo,
-    findItem, hitTest, preload, drawMap, makePreview, disarm,
+    MATERIALS, OBJECTS, SPECIALS, uid, newDocument, normalize, remember, arm, commit, undo, redo,
+    findItem, hitTest, preload, drawMap, makePreview, disarm, furnishDungeon,
   };
 })();

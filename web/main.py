@@ -165,6 +165,16 @@ def clean_preview(value):
     return value
 
 
+def valid_tile(tile):
+    if isinstance(tile, bool) or not isinstance(tile, int):
+        return False
+    if tile in (0, 1, 2, 3) or 4 <= tile <= 9:
+        return True
+    if 100 <= tile <= 104 or 200 <= tile <= 204:
+        return True
+    return False
+
+
 def validate_doc(data):
     if not isinstance(data, dict):
         return "Некорректный документ"
@@ -188,7 +198,7 @@ def validate_doc(data):
             if not isinstance(tiles, list) or len(tiles) != need:
                 return "Слой тайлов не совпадает с размером карты"
             for tile in tiles:
-                if isinstance(tile, bool) or not isinstance(tile, int) or not (0 <= tile <= 9):
+                if not valid_tile(tile):
                     return "Некорректная клетка карты"
         elif kind in ("objects", "notes"):
             items = layer.get("items", [])

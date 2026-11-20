@@ -1,7 +1,4 @@
-const CHARACTER_TILES = {
-    'stone': 'stone', 'floor': 'floor', 'wall': 'wall', 'trap': 'trap',
-    'treasure': 'treasure', 'goblin': 'goblin', 'boss': 'boss', 'light': 'light', 'stairs': 'stairs'
-};
+const CHARACTER_TILES = { stone: "stone", floor: "floor", wall: "wall" };
 
 function randint(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -22,7 +19,6 @@ class Generator {
         this.level = [];
         this.room_list = [];
         this.corridor_list = [];
-        this.types_of_rooms = ["tRoom", "mRoom", "trRoom", "bRoom", "sRoom"];
     }
 
     gen_room() {
@@ -123,18 +119,6 @@ class Generator {
             if (this.room_list.length >= this.max_rooms) break;
         }
 
-        if (this.max_rooms > 5) {
-            const roomTypes = ["tRoom", "mRoom", "trRoom", "bRoom"];
-            for (let i = 0; i < this.max_rooms - 5; i++) {
-                this.types_of_rooms.push(roomTypes[randint(0, 3)]);
-            }
-        }
-
-        for (const room of this.room_list) {
-            const idx = randint(0, this.types_of_rooms.length - 1);
-            room.push(this.types_of_rooms.splice(idx, 1)[0]);
-        }
-
         for (let a = 0; a < this.room_list.length - 1; a++) {
             this.join_rooms(this.room_list[a], this.room_list[a + 1]);
         }
@@ -180,23 +164,6 @@ class Generator {
                 }
             }
         }
-
-        for (const room of this.room_list) {
-            const type = room[4], x = room[0], y = room[1], w = room[2], h = room[3];
-            if (type === 'trRoom') {
-                for (let b = 0; b < w; b++) for (let c = 0; c < h; c++) if (randint(1, 10) === 1 && this.level[y + c][x + b] !== 'wall') this.level[y + c][x + b] = 'trap';
-            } else if (type === 'tRoom') {
-                for (let b = 0; b < w; b++) for (let c = 0; c < h; c++) if (randint(1, 10) === 1 && this.level[y + c][x + b] !== 'wall') this.level[y + c][x + b] = 'treasure';
-            } else if (type === 'mRoom') {
-                for (let i = 0; i < randint(1, 5); i++) this.level[randint(y + 1, y + h - 1)][randint(x + 1, x + w - 1)] = 'goblin';
-            } else if (type === 'bRoom') {
-                this.level[y][x] = 'light'; this.level[y + h - 1][x] = 'light';
-                this.level[y][x + w - 1] = 'light'; this.level[y + h - 1][x + w - 1] = 'light';
-                this.level[y + Math.floor(h / 2)][x + Math.floor(w / 2)] = 'boss';
-            } else if (type === 'sRoom') {
-                this.level[y + Math.floor(h / 2)][x + Math.floor(w / 2)] = 'stairs';
-            }
-        }
     }
 }
 
@@ -208,5 +175,8 @@ function generateDungeonMap(config) {
         config.random_spurs, CHARACTER_TILES
     );
     gen.gen_level();
-    return gen.level; // Возвращаем 2D-массив строк (например, [['stone', 'wall', ...], ...])
+    return {
+        level: gen.level,
+        rooms: gen.room_list.map((room) => ({ x: room[0], y: room[1], w: room[2], h: room[3] })),
+    };
 }

@@ -39,9 +39,13 @@
       <button class="tool" type="button" data-tool="floor">Пол</button>
       <button class="tool" type="button" data-tool="door">Дверь</button>
       <button class="tool" type="button" data-tool="empty">Ластик</button>
+      <button class="tool" type="button" data-tool="chest" data-auth="Сундуки доступны после входа">Сундук</button>
+      <button class="tool" type="button" data-tool="enemy" data-auth="Противники доступны после входа">Противник</button>
       <button class="tool" type="button" data-tool="trap" data-auth="Ловушки доступны после входа">Ловушка</button>
-      <button class="tool" type="button" data-tool="treasure" data-auth="Клад доступен после входа">Клад</button>
-      <button class="tool" type="button" data-tool="stairs" data-auth="Лестницы доступны после входа">Лестница</button>
+      <button class="tool" type="button" data-tool="water" data-auth="Вода доступна после входа">Вода</button>
+      <button class="tool" type="button" data-tool="lava" data-auth="Лава доступна после входа">Лава</button>
+      <button class="tool" type="button" data-tool="anvil" data-auth="Наковальни доступны после входа">Наковальня</button>
+      <button class="tool" type="button" data-tool="decor" data-auth="Декор доступен после входа">Декор</button>
       <button class="tool" type="button" data-tool="select" data-auth="Выбор объектов доступен после входа">Выбор</button>
       <button class="tool" type="button" data-tool="text" data-auth="Текстовые метки доступны после входа">Метка</button>
       <button class="tool" type="button" data-tool="sprite" data-auth="Спрайты доступны после входа">Спрайт</button>
@@ -54,7 +58,7 @@
         <span>слой: <b id="st-layer">Стены и пол</b></span>
         <span>курсор: <b id="st-pos">—</b></span>
         <span id="st-dirty">новая карта</span>
-        <span id="st-guest">Гость: стена, пол, дверь и ластик. Остальное — после входа.</span>
+        <span id="st-guest">Гость: стена, пол, дверь и ластик. Объекты и генерация — после входа.</span>
       </div>
     </div>
     <aside class="side">
@@ -82,17 +86,8 @@
           <label>Описание <textarea id="prop-desc" maxlength="400" placeholder="Всплывающая подсказка"></textarea></label>
           <button id="prop-delete" class="btn danger" type="button">Удалить объект</button>
         </div>
-        <ul class="legend">
-          <li><i style="background:#3e3a33"></i>стена</li>
-          <li><i style="background:#b3a184"></i>пол</li>
-          <li><i style="background:#8a5426"></i>дверь</li>
-          <li><i style="background:#a02020"></i>ловушка</li>
-          <li><i style="background:#ffd700"></i>клад</li>
-          <li><i style="background:#40a040"></i>монстр</li>
-          <li><i style="background:#ff4040"></i>босс</li>
-          <li><i style="background:#ffff80"></i>свет</li>
-          <li><i style="background:#fff"></i>лестница</li>
-        </ul>
+        <div id="palette"></div>
+        <p class="muted">Повторный клик по стене, полу или объекту меняет вариант. У одной комнаты стены из одного материала и пол из одного материала.</p>
       </div>
       <div data-panel="layers" hidden>
         <div id="layer-list"></div>
@@ -119,6 +114,12 @@
         <label>Комнаты <input id="gen-rooms" type="number" min="2" max="16" value="8"></label>
         <label>Мин. размер <input id="gen-min" type="number" min="3" max="12" value="4"></label>
         <label>Макс. размер <input id="gen-max" type="number" min="3" max="14" value="8"></label>
+        <label class="check"><input id="gen-objects" type="checkbox" checked> Генерировать с объектами</label>
+        <fieldset>
+          <legend>Особые комнаты</legend>
+          <div id="gen-specials"></div>
+        </fieldset>
+        <p class="muted">Можно сгенерировать пустые комнаты или комнаты с объектами. В особой комнате стоят только её объекты: сокровищница — сундуки, логово — противники и так далее. Без галочки объекты не ставятся, материал комнаты остаётся.</p>
         <p id="gen-error" class="error"></p>
         <button id="btn-gen" class="btn primary" type="button" data-auth="Генерация случайной карты доступна после входа">Сгенерировать</button>
         <p class="muted">Сначала откроется предпросмотр. В редактор карта попадёт после «Принять».</p>

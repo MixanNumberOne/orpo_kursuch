@@ -22,14 +22,31 @@ const App = {
   galleryMapId: null,
   notes: [],
   selectedAssetId: null,
+  wallVariant: 0,
+  floorVariant: 0,
+  objectVariant: {},
 };
 
-const TILE_OF = { wall: 1, floor: 2, door: 3, empty: 0, trap: 4, treasure: 5, stairs: 9 };
-const PREMIUM = new Set(["trap", "treasure", "stairs", "select", "text", "sprite"]);
+const PREMIUM = new Set(["chest", "enemy", "trap", "water", "lava", "anvil", "decor", "select", "text", "sprite"]);
 const TOOL_NAME = {
-  wall: "стена", floor: "пол", door: "дверь", empty: "ластик", trap: "ловушка",
-  treasure: "клад", stairs: "лестница", select: "выбор", text: "метка", sprite: "спрайт",
+  wall: "стена", floor: "пол", door: "дверь", empty: "ластик",
+  chest: "сундук", enemy: "противник", trap: "ловушка", water: "вода", lava: "лава",
+  anvil: "наковальня", decor: "декор", select: "выбор", text: "метка", sprite: "спрайт",
 };
+
+function tileForTool(tool) {
+  if (tool === "wall") return 100 + (App.wallVariant || 0);
+  if (tool === "floor") return 200 + (App.floorVariant || 0);
+  if (tool === "door") return 3;
+  return 0;
+}
+
+function toolCaption(tool) {
+  if (tool === "wall") return `стена · ${IO.MATERIALS.walls[App.wallVariant || 0].name}`;
+  if (tool === "floor") return `пол · ${IO.MATERIALS.floors[App.floorVariant || 0].name}`;
+  if (IO.OBJECTS[tool]) return `${IO.OBJECTS[tool].name} · ${(App.objectVariant[tool] || 0) + 1}`;
+  return TOOL_NAME[tool] || tool;
+}
 
 function cellFromEvent(event) {
   const canvas = document.getElementById("map");
@@ -83,7 +100,7 @@ const Editor = {
   },
   syncStatus() {
     const layer = App.doc.layers.find((item) => item.id === App.doc.activeLayerId);
-    document.getElementById("st-tool").textContent = TOOL_NAME[App.tool] || App.tool;
+    document.getElementById("st-tool").textContent = toolCaption(App.tool);
     document.getElementById("st-layer").textContent = layer ? layer.name : "—";
     document.getElementById("st-dirty").textContent = App.dirty ? "есть несохранённые изменения" : (App.mapId ? "сохранено" : "новая карта");
   },
@@ -102,14 +119,22 @@ const Editor = {
       redraw: () => Editor.draw(),
     });
   },
-  setTool(tool) {
+  setTool(tool, keepVariant) {
     if (PREMIUM.has(tool) && !App.user) {
       UI.openAuth("Этот инструмент доступен после входа");
       return;
     }
+    if (!keepVariant && tool === App.tool) {
+      if (tool === "wall") App.wallVariant = (App.wallVariant + 1) % IO.MATERIALS.walls.length;
+      else if (tool === "floor") App.floorVariant = (App.floorVariant + 1) % IO.MATERIALS.floors.length;
+      else if (IO.OBJECTS[tool]) {
+        App.objectVariant[tool] = ((App.objectVariant[tool] || 0) + 1) % IO.OBJECTS[tool].variants.length;
+      }
+    }
     App.tool = tool;
     document.querySelectorAll("[data-tool]").forEach((button) => button.classList.toggle("active", button.dataset.tool === tool));
     document.getElementById("map").style.cursor = tool === "select" ? "move" : tool === "text" ? "text" : "crosshair";
+    renderPalette();
     this.syncStatus();
   },
   resetDocument() {
@@ -440,7 +465,7 @@ function validateGen(params) {
   return "";
 }
 
-function generate() {
+async function generate() {
   if (!App.user) { UI.openAuth("Генерация случайной карты доступна после входа"); return; }
   const params = {
     w: readInt("gen-w"), h: readInt("gen-h"), rooms: readInt("gen-rooms"),
@@ -449,9 +474,9 @@ function generate() {
   const error = document.getElementById("gen-error");
   const message = validateGen(params);
   if (message) { error.textContent = message; return; }
-  let level;
+  let generated;
   try {
-    level = generateDungeonMap({
+    generated = generateDungeonMap({
       width: params.w, height: params.h, max_rooms: params.rooms,
       min_room_xy: params.min, max_room_xy: params.max,
       rooms_overlap: false, random_connections: 2, random_spurs: 0,
@@ -460,35 +485,48 @@ function generate() {
     error.textContent = "Не удалось сгенерировать карту. Измените параметры.";
     return;
   }
+  const level = generated && generated.level;
   if (!level || level.length !== params.h || !level.some((row) => row.includes("floor"))) {
     error.textContent = "Не удалось разместить комнаты. Уменьшите размер или число комнат.";
     return;
   }
-  const tiles = [];
-  for (let y = 0; y < params.h; y += 1) {
-    for (let x = 0; x < params.w; x += 1) tiles.push(IO.TILE_CODE[level[y][x]] ?? 0);
-  }
+  const built = IO.furnishDungeon(level, generated.rooms || [], {
+    withObjects: document.getElementById("gen-objects").checked,
+    specials: [...document.querySelectorAll(".gen-special:checked")].map((el) => el.value),
+  });
   error.textContent = "";
   App.previewDoc = IO.newDocument(params.w, params.h);
-  App.previewDoc.layers[0].tiles = tiles;
+  App.previewDoc.layers[0].tiles = built.tiles;
+  const objects = App.previewDoc.layers.find((layer) => layer.kind === "objects");
+  objects.items = built.items;
+  IO.remember(App.previewDoc);
+  await IO.preload(App.previewDoc);
   const canvas = document.getElementById("gen-canvas");
-  IO.drawMap(canvas, App.previewDoc, { editor: false, player: true, scale: Math.min(1, 520 / (params.w * 16)) });
+  const scale = Math.min(1, 520 / (params.w * 16));
+  const draw = () => IO.drawMap(canvas, App.previewDoc, { editor: false, player: true, scale, redraw: draw });
+  draw();
   document.getElementById("modal-gen").hidden = false;
 }
 
 function acceptGen() {
   if (!App.previewDoc || !App.user) return;
   const src = App.previewDoc;
+  const srcObjects = src.layers.find((layer) => layer.kind === "objects");
   IO.arm(App.doc);
   App.doc.cols = src.cols;
   App.doc.rows = src.rows;
   let replaced = false;
+  let objectsDone = false;
   for (const layer of App.doc.layers) {
     if (layer.kind === "tiles") {
       layer.tiles = replaced ? Array(src.cols * src.rows).fill(0) : src.layers[0].tiles.slice();
       replaced = true;
+    } else if (layer.kind === "objects") {
+      layer.items = objectsDone ? [] : (srcObjects?.items || []).map((item) => ({ ...item, id: IO.uid() }));
+      objectsDone = true;
     } else layer.items = (layer.items || []).filter((item) => item.x < src.cols && item.y < src.rows);
   }
+  IO.remember(App.doc);
   IO.commit(App.doc);
   App.previewDoc = null;
   document.getElementById("modal-gen").hidden = true;
@@ -527,19 +565,48 @@ async function openShare() {
   document.getElementById("modal-share").hidden = false;
 }
 
+const TILE_TOOLS = new Set(["wall", "floor", "door", "empty"]);
+
+function stampObject(x, y) {
+  const spec = IO.OBJECTS[App.tool];
+  const layer = layerByKind("objects");
+  if (!spec || !layer || layer.locked) return;
+  const variant = App.objectVariant[App.tool] || 0;
+  const same = (layer.items || []).some((item) => item.x === x && item.y === y && item.objectType === App.tool && item.variant === variant && item.w === 1 && item.h === 1);
+  if (same) return;
+  layer.items = (layer.items || []).filter((item) => !(item.objectType && item.x === x && item.y === y && item.w === 1 && item.h === 1));
+  layer.items.push({
+    id: IO.uid(), kind: "sprite", x, y, w: 1, h: 1,
+    src: spec.variants[variant], name: spec.name, text: "", description: spec.name,
+    objectType: App.tool, variant,
+  });
+}
+
 function onPointerDown(event) {
   if (event.button !== 0 || !App.doc) return;
   if (App.playerMode) { UI.toast("Выключите режим игрока, чтобы редактировать"); return; }
   const cell = cellFromEvent(event);
   if (PREMIUM.has(App.tool) && !App.user) { UI.openAuth("Этот инструмент доступен после входа"); return; }
-  if (App.tool in TILE_OF) {
+  if (IO.OBJECTS[App.tool]) {
+    const layer = layerByKind("objects");
+    if (!layer || layer.locked) {
+      UI.toast(layer ? "Слой объектов заблокирован" : "Добавьте слой объектов", "error");
+      return;
+    }
+    IO.arm(App.doc);
+    App.painting = true;
+    stampObject(cell.x, cell.y);
+    Editor.draw();
+    return;
+  }
+  if (TILE_TOOLS.has(App.tool)) {
     const layer = currentTileLayer();
     if (!layer) { UI.toast(App.user ? "Выберите незаблокированный слой тайлов" : "Нет слоя для рисования", "error"); return; }
     IO.arm(App.doc);
     App.painting = true;
     App.prevX = cell.x;
     App.prevY = cell.y;
-    paintLine(cell.x, cell.y, cell.x, cell.y, TILE_OF[App.tool]);
+    paintLine(cell.x, cell.y, cell.x, cell.y, tileForTool(App.tool));
     Editor.draw();
     return;
   }
@@ -575,9 +642,12 @@ function onPointerMove(event) {
   if (hit && hit.item.description && !App.painting) UI.showTooltip(event, hit.item.description);
   else UI.hideTooltip();
   if (App.painting) {
-    paintLine(App.prevX, App.prevY, cell.x, cell.y, TILE_OF[App.tool]);
-    App.prevX = cell.x;
-    App.prevY = cell.y;
+    if (IO.OBJECTS[App.tool]) stampObject(cell.x, cell.y);
+    else {
+      paintLine(App.prevX, App.prevY, cell.x, cell.y, tileForTool(App.tool));
+      App.prevX = cell.x;
+      App.prevY = cell.y;
+    }
     Editor.draw();
   }
   if (App.drag) {
@@ -591,6 +661,7 @@ function onPointerMove(event) {
 
 function onPointerUp() {
   if (!App.painting && !App.drag) return;
+  IO.remember(App.doc);
   if (IO.commit(App.doc)) Editor.markDirty();
   Editor.syncHistory();
   App.painting = false;
@@ -702,9 +773,70 @@ async function bootView() {
   }
 }
 
+function swatch(src, title, active, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = active ? "swatch active" : "swatch";
+  button.title = title;
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = title;
+  button.append(img);
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function renderPalette() {
+  const root = document.getElementById("palette");
+  if (!root) return;
+  root.replaceChildren();
+  const add = (title, buttons) => {
+    const heading = document.createElement("p");
+    heading.className = "muted palette-title";
+    heading.textContent = title;
+    const row = document.createElement("div");
+    row.className = "swatches";
+    buttons.forEach((button) => row.append(button));
+    root.append(heading, row);
+  };
+  add("Стены", IO.MATERIALS.walls.map((mat, index) => swatch(mat.src, mat.name, App.tool === "wall" && App.wallVariant === index, () => {
+    App.wallVariant = index;
+    Editor.setTool("wall", true);
+  })));
+  add("Полы", IO.MATERIALS.floors.map((mat, index) => swatch(mat.src, mat.name, App.tool === "floor" && App.floorVariant === index, () => {
+    App.floorVariant = index;
+    Editor.setTool("floor", true);
+  })));
+  for (const [type, spec] of Object.entries(IO.OBJECTS)) {
+    add(spec.name, spec.variants.map((src, index) => swatch(src, `${spec.name} ${index + 1}`, App.tool === type && (App.objectVariant[type] || 0) === index, () => {
+      if (!App.user) { UI.openAuth("Объекты доступны после входа"); return; }
+      App.objectVariant[type] = index;
+      Editor.setTool(type, true);
+    })));
+  }
+}
+
+function renderSpecials() {
+  const box = document.getElementById("gen-specials");
+  if (!box || box.childElementCount) return;
+  for (const spec of IO.SPECIALS) {
+    const label = document.createElement("label");
+    label.className = "check";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "gen-special";
+    input.value = spec.id;
+    label.append(input, document.createTextNode(` ${spec.label}`));
+    box.append(label);
+  }
+}
+
 async function bootApp() {
   UI.bind();
   bindEditor();
+  renderSpecials();
+  renderPalette();
+  IO.preload();
   try {
     const me = await API.me();
     App.user = me.user;
