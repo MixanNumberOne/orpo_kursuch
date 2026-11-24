@@ -3,40 +3,59 @@ const IO = (() => {
   const MATERIALS = {
     walls: [
       { name: "Кирпич", src: "/static/textures/wall-0.png", color: "#8b93a6" },
-      { name: "Камень", src: "/static/textures/wall-1.png", color: "#7e8a9c" },
-      { name: "Плитняк", src: "/static/textures/wall-2.png", color: "#6d7888" },
-      { name: "Кладка", src: "/static/textures/wall-3.png", color: "#5e6878" },
-      { name: "Доски", src: "/static/textures/wall-4.png", color: "#8d7a62" },
+      { name: "Камень", src: "/static/textures/wall-1.png", color: "#7a8496" },
+      { name: "Кладка", src: "/static/textures/wall-2.png", color: "#6a7484" },
     ],
     floors: [
       { name: "Земля", src: "/static/textures/floor-0.png", color: "#6b4034" },
-      { name: "Каменистая земля", src: "/static/textures/floor-1.png", color: "#5a3c32" },
-      { name: "Плитка", src: "/static/textures/floor-2.png", color: "#c4a888" },
-      { name: "Песок", src: "/static/textures/floor-3.png", color: "#d7b07a" },
-      { name: "Красная земля", src: "/static/textures/floor-4.png", color: "#8a5044" },
+      { name: "Плитка", src: "/static/textures/floor-1.png", color: "#9aa0aa" },
+      { name: "Дерево", src: "/static/textures/floor-2.png", color: "#8d7a62" },
+      { name: "Брусчатка", src: "/static/textures/floor-3.png", color: "#8e929a" },
     ],
   };
   const DOOR = { src: "/static/textures/door.png", color: "#8a5426" };
   const OBJECTS = {
     chest: { name: "Сундук", variants: ["/static/textures/chest-0.png", "/static/textures/chest-1.png", "/static/textures/chest-2.png"] },
-    enemy: { name: "Противник", variants: ["/static/textures/enemy-0.png", "/static/textures/enemy-1.png", "/static/textures/enemy-2.png"] },
+    enemy: {
+      name: "Противник",
+      labels: ["Рыцарь", "Гоблин", "Разбойник", "Слизень", "Паук"],
+      variants: [
+        "/static/textures/enemy-0.png",
+        "/static/textures/enemy-3.png",
+        "/static/textures/enemy-4.png",
+        "/static/textures/enemy-1.png",
+        "/static/textures/enemy-2.png",
+      ],
+    },
     trap: { name: "Ловушка", variants: ["/static/textures/trap-0.png", "/static/textures/trap-1.png", "/static/textures/trap-2.png"] },
     water: { name: "Вода", variants: ["/static/textures/water-0.png", "/static/textures/water-1.png", "/static/textures/water-2.png"] },
     lava: { name: "Лава", variants: ["/static/textures/lava-0.png", "/static/textures/lava-1.png", "/static/textures/lava-2.png"] },
-    anvil: { name: "Наковальня", variants: ["/static/textures/anvil-0.png", "/static/textures/anvil-1.png", "/static/textures/anvil-2.png"] },
-    decor: { name: "Декор", variants: ["/static/textures/decor-0.png", "/static/textures/decor-1.png", "/static/textures/decor-2.png"] },
+    decor: {
+      name: "Декор",
+      labels: ["Ящик", "Бочка", "Зелье", "Щит", "Наковальня", "Молот", "Кости"],
+      variants: [
+        "/static/textures/decor-0.png",
+        "/static/textures/decor-1.png",
+        "/static/textures/decor-2.png",
+        "/static/textures/decor-3.png",
+        "/static/textures/decor-4.png",
+        "/static/textures/decor-5.png",
+        "/static/textures/decor-6.png",
+      ],
+    },
   };
   const SPECIALS = [
-    { id: "treasury", label: "Сокровищница — только сундуки", object: "chest", wall: 0, floor: 3 },
-    { id: "lair", label: "Логово — только противники", object: "enemy", wall: 1, floor: 0 },
-    { id: "traps", label: "Зал ловушек — только ловушки", object: "trap", wall: 3, floor: 2 },
-    { id: "cistern", label: "Цистерна — только вода", object: "water", wall: 2, floor: 2 },
-    { id: "lava", label: "Лавовая яма — только лава", object: "lava", wall: 1, floor: 4 },
-    { id: "smithy", label: "Кузница — только наковальни", object: "anvil", wall: 3, floor: 1 },
-    { id: "hall", label: "Украшенный зал — только декор", object: "decor", wall: 4, floor: 3 },
+    { id: "treasury", label: "Сокровищница", object: "chest", wall: 0, floor: 1 },
+    { id: "lair", label: "Логово", object: "enemy", wall: 1, floor: 0 },
+    { id: "traps", label: "Зал ловушек", object: "trap", wall: 2, floor: 1 },
+    { id: "cistern", label: "Цистерна", object: "water", wall: 1, floor: 3 },
+    { id: "lava", label: "Лавовая яма", object: "lava", wall: 1, floor: 3 },
+    { id: "hall", label: "Украшенный зал", object: "decor", wall: 2, floor: 2 },
   ];
-  const ROOM_PAIRS = [[0, 1], [1, 0], [2, 2], [3, 4], [4, 3]];
-  const CORRIDOR = { wall: 1, floor: 2 };
+  const ROOM_PAIRS = [[0, 0], [1, 1], [2, 2], [1, 3]];
+  const CORRIDOR = { wall: 1, floor: 3 };
+  const WALL_MAP = [0, 1, 2, 2, 1];
+  const FLOOR_MAP = [0, 0, 1, 3, 0];
   const images = new Map();
   const srcStore = new Map();
   let armed = null;
@@ -73,8 +92,14 @@ const IO = (() => {
     if (tile === 0 || tile === 3) return tile;
     if (tile === 1) return 100;
     if (tile === 2 || (tile >= 4 && tile <= 9)) return 200;
-    if (tile >= 100 && tile < 100 + MATERIALS.walls.length) return tile;
-    if (tile >= 200 && tile < 200 + MATERIALS.floors.length) return tile;
+    if (tile >= 100 && tile < 200) {
+      const mapped = WALL_MAP[tile - 100];
+      return mapped === undefined ? 100 : 100 + mapped;
+    }
+    if (tile >= 200 && tile < 300) {
+      const mapped = FLOOR_MAP[tile - 200];
+      return mapped === undefined ? 200 : 200 + mapped;
+    }
     return 0;
   }
 

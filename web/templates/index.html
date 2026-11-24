@@ -44,7 +44,6 @@
       <button class="tool" type="button" data-tool="trap" data-auth="Ловушки доступны после входа">Ловушка</button>
       <button class="tool" type="button" data-tool="water" data-auth="Вода доступна после входа">Вода</button>
       <button class="tool" type="button" data-tool="lava" data-auth="Лава доступна после входа">Лава</button>
-      <button class="tool" type="button" data-tool="anvil" data-auth="Наковальни доступны после входа">Наковальня</button>
       <button class="tool" type="button" data-tool="decor" data-auth="Декор доступен после входа">Декор</button>
       <button class="tool" type="button" data-tool="select" data-auth="Выбор объектов доступен после входа">Выбор</button>
       <button class="tool" type="button" data-tool="text" data-auth="Текстовые метки доступны после входа">Метка</button>
@@ -58,7 +57,6 @@
         <span>слой: <b id="st-layer">Стены и пол</b></span>
         <span>курсор: <b id="st-pos">—</b></span>
         <span id="st-dirty">новая карта</span>
-        <span id="st-guest">Гость: стена, пол, дверь и ластик. Объекты и генерация — после входа.</span>
       </div>
     </div>
     <aside class="side">
@@ -87,7 +85,6 @@
           <button id="prop-delete" class="btn danger" type="button">Удалить объект</button>
         </div>
         <div id="palette"></div>
-        <p class="muted">Повторный клик по стене, полу или объекту меняет вариант. У одной комнаты стены из одного материала и пол из одного материала.</p>
       </div>
       <div data-panel="layers" hidden>
         <div id="layer-list"></div>
@@ -99,7 +96,6 @@
           </select>
           <button id="btn-add-layer" class="btn" type="button" data-auth="Слои доступны после входа">Добавить слой</button>
         </div>
-        <p class="muted">Рисунок попадает в активный слой. Скрытый слой не виден. Заметки мастера пропадают в режиме игрока и по публичной ссылке.</p>
       </div>
       <div data-panel="grid" hidden>
         <label class="check"><input id="grid-show" type="checkbox" checked data-auth="Настройка сетки доступна после входа"> Показывать сетку</label>
@@ -119,16 +115,13 @@
           <legend>Особые комнаты</legend>
           <div id="gen-specials"></div>
         </fieldset>
-        <p class="muted">Без отметок комнаты обычные. Если отметить особые комнаты, всё подземелье собирается только из них: сокровищница — сундуки, логово — противники, цистерна — вода. Галочка «с объектами» решает, ставить предметы или оставить комнаты пустыми. Стены и пол у комнаты в любом случае из одного материала.</p>
         <p id="gen-error" class="error"></p>
         <button id="btn-gen" class="btn primary" type="button" data-auth="Генерация случайной карты доступна после входа">Сгенерировать</button>
-        <p class="muted">Сначала откроется предпросмотр. В редактор карта попадёт после «Принять».</p>
       </div>
       <div data-panel="assets" hidden>
         <label class="btn" data-auth="Загрузка текстур и спрайтов доступна после входа">Загрузить PNG или JPG
           <input id="asset-file" type="file" accept="image/png,image/jpeg" hidden>
         </label>
-        <p class="muted">До 1,5 МБ. Перетащите спрайт на карту или выберите его и кликните инструментом «Спрайт».</p>
         <div id="asset-list"></div>
       </div>
     </aside>
@@ -200,7 +193,6 @@
 <div id="modal-export" class="modal-back" hidden>
   <div class="modal">
     <h2>Экспорт</h2>
-    <p class="muted">Без входа доступен PNG с водяным знаком. Высокое разрешение и файл без знака — после входа.</p>
     <label class="check"><input id="export-notes" type="checkbox" data-auth="Экспорт заметок доступен после входа"> Включить заметки мастера</label>
     <div class="row">
       <button id="export-png" class="btn" type="button">PNG</button>
@@ -216,7 +208,6 @@
   <div class="modal">
     <h2>Ссылка для просмотра</h2>
     <label class="check"><input id="share-public" type="checkbox"> Открыть публичный доступ</label>
-    <p class="muted">По ссылке карту можно открыть без входа и без редактирования. Заметки мастера туда не попадают. Если закрыть доступ, старая ссылка перестаёт открываться.</p>
     <input id="share-link" readonly>
     <div class="row">
       <button id="share-copy" class="btn" type="button">Копировать</button>

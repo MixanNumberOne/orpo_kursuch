@@ -4,8 +4,8 @@ Kenney — Tiny Dungeon
 https://kenney.nl/assets/tiny-dungeon
 https://opengameart.org/content/tiny-dungeon
 
-Из набора взяты стены, полы, дверь, сундуки, противники,
-декор и одна наковальня (исходные файлы tile_XXXX.png).
+Из набора взяты стены, деревянный пол, земля, дверь, сундуки,
+рыцарь, разбойник, слизень, паук и декор, включая наковальню.
 
-water-*.png, lava-*.png, trap-*.png, anvil-1.png и anvil-2.png
-нарисованы для этого проекта: схематичные тайлы 16×16.
+floor-1.png (плитка), floor-3.png (брусчатка), enemy-3.png (гоблин),
+water-*.png, lava-*.png и trap-*.png нарисованы для проекта, 16×16.

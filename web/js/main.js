@@ -27,11 +27,11 @@ const App = {
   objectVariant: {},
 };
 
-const PREMIUM = new Set(["chest", "enemy", "trap", "water", "lava", "anvil", "decor", "select", "text", "sprite"]);
+const PREMIUM = new Set(["chest", "enemy", "trap", "water", "lava", "decor", "select", "text", "sprite"]);
 const TOOL_NAME = {
   wall: "стена", floor: "пол", door: "дверь", empty: "ластик",
   chest: "сундук", enemy: "противник", trap: "ловушка", water: "вода", lava: "лава",
-  anvil: "наковальня", decor: "декор", select: "выбор", text: "метка", sprite: "спрайт",
+  decor: "декор", select: "выбор", text: "метка", sprite: "спрайт",
 };
 
 function tileForTool(tool) {
@@ -44,7 +44,11 @@ function tileForTool(tool) {
 function toolCaption(tool) {
   if (tool === "wall") return `стена · ${IO.MATERIALS.walls[App.wallVariant || 0].name}`;
   if (tool === "floor") return `пол · ${IO.MATERIALS.floors[App.floorVariant || 0].name}`;
-  if (IO.OBJECTS[tool]) return `${IO.OBJECTS[tool].name} · ${(App.objectVariant[tool] || 0) + 1}`;
+  if (IO.OBJECTS[tool]) {
+    const spec = IO.OBJECTS[tool];
+    const index = App.objectVariant[tool] || 0;
+    return `${spec.name} · ${(spec.labels || [])[index] || index + 1}`;
+  }
   return TOOL_NAME[tool] || tool;
 }
 
@@ -790,30 +794,30 @@ function renderPalette() {
   const root = document.getElementById("palette");
   if (!root) return;
   root.replaceChildren();
-  const add = (title, buttons) => {
-    const heading = document.createElement("p");
-    heading.className = "muted palette-title";
-    heading.textContent = title;
-    const row = document.createElement("div");
-    row.className = "swatches";
-    buttons.forEach((button) => row.append(button));
-    root.append(heading, row);
-  };
-  add("Стены", IO.MATERIALS.walls.map((mat, index) => swatch(mat.src, mat.name, App.tool === "wall" && App.wallVariant === index, () => {
-    App.wallVariant = index;
-    Editor.setTool("wall", true);
-  })));
-  add("Полы", IO.MATERIALS.floors.map((mat, index) => swatch(mat.src, mat.name, App.tool === "floor" && App.floorVariant === index, () => {
-    App.floorVariant = index;
-    Editor.setTool("floor", true);
-  })));
-  for (const [type, spec] of Object.entries(IO.OBJECTS)) {
-    add(spec.name, spec.variants.map((src, index) => swatch(src, `${spec.name} ${index + 1}`, App.tool === type && (App.objectVariant[type] || 0) === index, () => {
+  let buttons = [];
+  if (App.tool === "wall") {
+    buttons = IO.MATERIALS.walls.map((mat, index) => swatch(mat.src, mat.name, App.wallVariant === index, () => {
+      App.wallVariant = index;
+      Editor.setTool("wall", true);
+    }));
+  } else if (App.tool === "floor") {
+    buttons = IO.MATERIALS.floors.map((mat, index) => swatch(mat.src, mat.name, App.floorVariant === index, () => {
+      App.floorVariant = index;
+      Editor.setTool("floor", true);
+    }));
+  } else if (IO.OBJECTS[App.tool]) {
+    const type = App.tool;
+    buttons = IO.OBJECTS[type].variants.map((src, index) => swatch(src, (IO.OBJECTS[type].labels || [])[index] || `${IO.OBJECTS[type].name} ${index + 1}`, (App.objectVariant[type] || 0) === index, () => {
       if (!App.user) { UI.openAuth("Объекты доступны после входа"); return; }
       App.objectVariant[type] = index;
       Editor.setTool(type, true);
-    })));
+    }));
   }
+  if (!buttons.length) return;
+  const row = document.createElement("div");
+  row.className = "swatches";
+  buttons.forEach((button) => row.append(button));
+  root.append(row);
 }
 
 function renderSpecials() {
