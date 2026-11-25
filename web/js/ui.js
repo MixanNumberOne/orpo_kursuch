@@ -125,7 +125,7 @@ const UI = (() => {
       name.addEventListener("blur", () => { if (IO.commit(App.doc)) Editor.syncHistory(); });
       const kind = document.createElement("span");
       kind.className = "kind";
-      kind.textContent = layer.kind === "tiles" ? "тайлы" : layer.kind === "notes" ? "заметки" : "объекты";
+      kind.textContent = layer.kind === "tiles" ? "тайлы" : "объекты";
       row.append(
         eye, lock, name, kind,
         iconButton("Поверх", () => Editor.moveLayer(index, 1), "↑"),

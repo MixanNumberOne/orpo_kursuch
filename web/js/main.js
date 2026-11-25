@@ -5,7 +5,6 @@ const App = {
   shareToken: null,
   selection: null,
   tool: "wall",
-  playerMode: false,
   dirty: false,
   assets: [],
   folders: [],
@@ -134,7 +133,7 @@ const Editor = {
   draw() {
     IO.drawMap(document.getElementById("map"), App.doc, {
       editor: true,
-      player: App.playerMode,
+      player: false,
       selection: App.selection,
       redraw: () => Editor.draw(),
     });
@@ -164,14 +163,11 @@ const Editor = {
     App.shareToken = null;
     App.selection = null;
     App.previewDoc = null;
-    App.playerMode = false;
     App.folderId = null;
     App.tagIds = [];
     App.doc = IO.newDocument();
     document.getElementById("map-name").value = "Новая карта";
     document.getElementById("map-public").checked = false;
-    document.getElementById("player-banner").hidden = true;
-    document.getElementById("btn-player").classList.remove("active");
     this.markClean();
     UI.renderLayers();
     UI.syncGrid();
@@ -196,13 +192,10 @@ const Editor = {
     App.doc = IO.normalize(data.data);
     IO.remember(App.doc);
     App.selection = null;
-    App.playerMode = false;
     App.folderId = data.folder_id;
     App.tagIds = (data.tags || []).map((tag) => tag.id);
     document.getElementById("map-name").value = data.name;
     document.getElementById("map-public").checked = !!data.is_public;
-    document.getElementById("player-banner").hidden = true;
-    document.getElementById("btn-player").classList.remove("active");
     this.markClean();
     UI.renderLayers();
     UI.syncGrid();
@@ -276,14 +269,6 @@ const Editor = {
     this.syncHistory();
     this.draw();
   },
-  togglePlayer() {
-    if (!App.user) { UI.openAuth("Режим игрока доступен после входа"); return; }
-    App.playerMode = !App.playerMode;
-    document.getElementById("player-banner").hidden = !App.playerMode;
-    document.getElementById("btn-player").classList.toggle("active", App.playerMode);
-    if (App.playerMode) { App.selection = null; UI.showInspector(); }
-    this.draw();
-  },
   toggleLayer(id, field) {
     const layer = App.doc.layers.find((item) => item.id === id);
     if (!layer) return;
@@ -326,7 +311,7 @@ const Editor = {
   addLayer() {
     if (!App.user) { UI.openAuth("Слои доступны после входа"); return; }
     const kind = document.getElementById("layer-kind").value;
-    const names = { tiles: "Новый слой тайлов", objects: "Объекты", notes: "Заметки" };
+    const names = { tiles: "Новый слой тайлов", objects: "Объекты" };
     IO.arm(App.doc);
     const layer = { id: IO.uid(), name: names[kind] || "Слой", kind, visible: true, locked: false };
     if (kind === "tiles") layer.tiles = Array(App.doc.cols * App.doc.rows).fill(0);
@@ -352,8 +337,8 @@ const Editor = {
     this.draw();
   },
   placeLabel(x, y) {
-    const layer = layerByKind("notes");
-    if (!layer) { UI.toast("Добавьте слой заметок", "error"); return; }
+    const layer = layerByKind("objects");
+    if (!layer) { UI.toast("Добавьте слой объектов", "error"); return; }
     layer.visible = true;
     IO.arm(App.doc);
     const item = {
@@ -478,10 +463,11 @@ function readInt(id) {
 }
 
 function validateGen(params) {
-  if (![params.w, params.h, params.rooms, params.min, params.max].every(Number.isInteger)) return "Параметры должны быть целыми числами";
+  if (![params.w, params.h, params.rooms, params.min, params.max, params.connections, params.spurs].every(Number.isInteger)) return "Параметры должны быть целыми числами";
   if (params.w < 20 || params.w > 64 || params.h < 14 || params.h > 40) return "Размер карты: ширина 20–64, высота 14–40";
   if (params.rooms < 2 || params.rooms > 16) return "Количество комнат: от 2 до 16";
   if (params.min < 3 || params.max > 14 || params.min > params.max) return "Некорректный размер комнаты";
+  if (params.connections < 0 || params.connections > 8 || params.spurs < 0 || params.spurs > 8) return "Коридоры и тупики: от 0 до 8";
   if (params.w < params.max + 3 || params.h < params.max + 3) return "Карта слишком мала для таких комнат";
   return "";
 }
@@ -491,6 +477,8 @@ async function generate() {
   const params = {
     w: readInt("gen-w"), h: readInt("gen-h"), rooms: readInt("gen-rooms"),
     min: readInt("gen-min"), max: readInt("gen-max"),
+    connections: readInt("gen-connections"), spurs: readInt("gen-spurs"),
+    overlap: document.getElementById("gen-overlap").checked,
   };
   const error = document.getElementById("gen-error");
   const message = validateGen(params);
@@ -500,7 +488,7 @@ async function generate() {
     generated = generateDungeonMap({
       width: params.w, height: params.h, max_rooms: params.rooms,
       min_room_xy: params.min, max_room_xy: params.max,
-      rooms_overlap: false, random_connections: 2, random_spurs: 0,
+      rooms_overlap: params.overlap, random_connections: params.connections, random_spurs: params.spurs,
     });
   } catch (_err) {
     error.textContent = "Не удалось сгенерировать карту. Измените параметры.";
@@ -563,10 +551,9 @@ async function doExport(scale, format) {
     UI.openAuth("Экспорт в высоком разрешении без водяного знака доступен после входа");
     return;
   }
-  const notes = !!App.user && document.getElementById("export-notes").checked;
   await IO.preload(App.doc);
   const canvas = document.createElement("canvas");
-  IO.drawMap(canvas, App.doc, { scale, player: !notes, editor: false, watermark: !App.user });
+  IO.drawMap(canvas, App.doc, { scale, player: false, editor: false, watermark: !App.user });
   const name = (document.getElementById("map-name").value || "map").replace(/[\\/:*?"<>|]+/g, "").trim() || "map";
   const link = document.createElement("a");
   link.href = canvas.toDataURL(format, 0.92);
@@ -605,7 +592,6 @@ function stampObject(x, y) {
 
 function onPointerDown(event) {
   if (event.button !== 0 || !App.doc) return;
-  if (App.playerMode) { UI.toast("Выключите режим игрока, чтобы редактировать"); return; }
   const cell = cellFromEvent(event);
   if (PREMIUM.has(App.tool) && !App.user) { UI.openAuth("Этот инструмент доступен после входа"); return; }
   if (IO.OBJECTS[App.tool]) {
@@ -632,7 +618,7 @@ function onPointerDown(event) {
     return;
   }
   if (App.tool === "select" || App.tool === "text") {
-    const hit = IO.hitTest(App.doc, cell.x, cell.y, App.playerMode);
+    const hit = IO.hitTest(App.doc, cell.x, cell.y, false);
     if (hit) {
       IO.arm(App.doc);
       App.selection = hit.item.id;
@@ -659,7 +645,7 @@ function onPointerMove(event) {
   const cell = cellFromEvent(event);
   const pos = document.getElementById("st-pos");
   if (pos) pos.textContent = `${cell.x},${cell.y}`;
-  const hit = IO.hitTest(App.doc, cell.x, cell.y, App.playerMode);
+  const hit = IO.hitTest(App.doc, cell.x, cell.y, false);
   if (hit && hit.item.description && !App.painting) UI.showTooltip(event, hit.item.description);
   else UI.hideTooltip();
   if (App.painting) {
@@ -713,7 +699,6 @@ function bindEditor() {
   document.getElementById("btn-new").addEventListener("click", () => Editor.newMap());
   document.getElementById("btn-undo").addEventListener("click", () => Editor.undo());
   document.getElementById("btn-redo").addEventListener("click", () => Editor.redo());
-  document.getElementById("btn-player").addEventListener("click", () => Editor.togglePlayer());
   document.getElementById("btn-save").addEventListener("click", () => UI.run(() => Editor.save()));
   document.getElementById("btn-share").addEventListener("click", () => UI.run(openShare));
   document.getElementById("btn-duplicate").addEventListener("click", () => UI.run(() => Editor.duplicate()));

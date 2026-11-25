@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf }}">
 <title>Dungeon Map Builder — карты подземелий</title>
-<link rel="stylesheet" href="/static/app.css?v=tools2">
+<link rel="stylesheet" href="/static/app.css?v=ui3">
 </head>
 <body class="app" data-page="editor">
 <header>
@@ -22,7 +22,6 @@
     <button id="btn-new" class="btn" type="button">Новая</button>
     <button id="btn-undo" class="btn" type="button" data-auth="Отмена действий доступна после входа" title="Ctrl+Z">Отменить</button>
     <button id="btn-redo" class="btn" type="button" data-auth="Повтор действий доступен после входа" title="Ctrl+Y">Повторить</button>
-    <button id="btn-player" class="btn" type="button" data-auth="Режим игрока доступен после входа">Режим игрока</button>
     <button id="btn-save" class="btn primary" type="button" data-auth="Сохранение в облако доступно после входа">Сохранить</button>
     <button id="btn-share" class="btn" type="button" data-auth="Ссылка для просмотра доступна после входа">Поделиться</button>
     <button id="btn-export" class="btn" type="button">Экспорт</button>
@@ -34,8 +33,23 @@
 
 <main>
   <section id="view-editor" class="view active">
+    <aside class="tools">
+      <button class="tool active" type="button" data-tool="wall">Стена</button>
+      <button class="tool" type="button" data-tool="floor">Пол</button>
+      <button class="tool" type="button" data-tool="door">Дверь</button>
+      <button class="tool" type="button" data-tool="empty">Ластик</button>
+      <button class="tool" type="button" data-tool="chest" data-auth="Сундуки доступны после входа">Сундук</button>
+      <button class="tool" type="button" data-tool="enemy" data-auth="Противники доступны после входа">Противник</button>
+      <button class="tool" type="button" data-tool="trap" data-auth="Ловушки доступны после входа">Ловушка</button>
+      <button class="tool" type="button" data-tool="water" data-auth="Вода доступна после входа">Вода</button>
+      <button class="tool" type="button" data-tool="lava" data-auth="Лава доступна после входа">Лава</button>
+      <button class="tool" type="button" data-tool="decor" data-auth="Декор доступен после входа">Декор</button>
+      <button class="tool" type="button" data-tool="select" data-auth="Выбор объектов доступен после входа">Выбор</button>
+      <button class="tool" type="button" data-tool="text" data-auth="Текстовые метки доступны после входа">Метка</button>
+      <button class="tool" type="button" data-tool="sprite" data-auth="Спрайты доступны после входа">Спрайт</button>
+      <div id="palette"></div>
+    </aside>
     <div class="stage">
-      <div id="player-banner" class="banner" hidden>Режим игрока: заметки мастера скрыты</div>
       <div class="canvas-wrap"><canvas id="map" width="640" height="384"></canvas></div>
       <div id="statusbar">
         <span>инструмент: <b id="st-tool">стена</b></span>
@@ -49,7 +63,6 @@
         <button class="btn active" type="button" data-tab="map">Карта</button>
         <button class="btn" type="button" data-tab="layers">Слои</button>
         <button class="btn" type="button" data-tab="grid">Сетка</button>
-        <button class="btn" type="button" data-tab="tools">Редактор</button>
         <button class="btn" type="button" data-tab="gen">Генератор</button>
         <button class="btn" type="button" data-tab="assets">Ассеты</button>
       </div>
@@ -71,31 +84,12 @@
           <button id="prop-delete" class="btn danger" type="button">Удалить объект</button>
         </div>
       </div>
-      <div data-panel="tools" hidden>
-        <div class="tool-list">
-          <button class="tool active" type="button" data-tool="wall">Стена</button>
-          <button class="tool" type="button" data-tool="floor">Пол</button>
-          <button class="tool" type="button" data-tool="door">Дверь</button>
-          <button class="tool" type="button" data-tool="empty">Ластик</button>
-          <button class="tool" type="button" data-tool="chest" data-auth="Сундуки доступны после входа">Сундук</button>
-          <button class="tool" type="button" data-tool="enemy" data-auth="Противники доступны после входа">Противник</button>
-          <button class="tool" type="button" data-tool="trap" data-auth="Ловушки доступны после входа">Ловушка</button>
-          <button class="tool" type="button" data-tool="water" data-auth="Вода доступна после входа">Вода</button>
-          <button class="tool" type="button" data-tool="lava" data-auth="Лава доступна после входа">Лава</button>
-          <button class="tool" type="button" data-tool="decor" data-auth="Декор доступен после входа">Декор</button>
-          <button class="tool" type="button" data-tool="select" data-auth="Выбор объектов доступен после входа">Выбор</button>
-          <button class="tool" type="button" data-tool="text" data-auth="Текстовые метки доступны после входа">Метка</button>
-          <button class="tool" type="button" data-tool="sprite" data-auth="Спрайты доступны после входа">Спрайт</button>
-        </div>
-        <div id="palette"></div>
-      </div>
       <div data-panel="layers" hidden>
         <div id="layer-list"></div>
         <div class="row">
           <select id="layer-kind">
             <option value="tiles">Тайлы</option>
             <option value="objects">Объекты</option>
-            <option value="notes">Заметки</option>
           </select>
           <button id="btn-add-layer" class="btn" type="button" data-auth="Слои доступны после входа">Добавить слой</button>
         </div>
@@ -113,6 +107,9 @@
         <label>Комнаты <input id="gen-rooms" type="number" min="2" max="16" value="8"></label>
         <label>Мин. размер <input id="gen-min" type="number" min="3" max="12" value="4"></label>
         <label>Макс. размер <input id="gen-max" type="number" min="3" max="14" value="8"></label>
+        <label class="check"><input id="gen-overlap" type="checkbox" checked> Комнаты могут пересекаться</label>
+        <label>Доп. коридоры <input id="gen-connections" type="number" min="0" max="8" value="1"></label>
+        <label>Тупики <input id="gen-spurs" type="number" min="0" max="8" value="0"></label>
         <label class="check"><input id="gen-objects" type="checkbox" checked> Генерировать с объектами</label>
         <fieldset>
           <legend>Особые комнаты</legend>
@@ -196,7 +193,6 @@
 <div id="modal-export" class="modal-back" hidden>
   <div class="modal">
     <h2>Экспорт</h2>
-    <label class="check"><input id="export-notes" type="checkbox" data-auth="Экспорт заметок доступен после входа"> Включить заметки мастера</label>
     <div class="row">
       <button id="export-png" class="btn" type="button">PNG</button>
       <button id="export-png2" class="btn" type="button" data-auth="Экспорт 2× доступен после входа">PNG 2×</button>

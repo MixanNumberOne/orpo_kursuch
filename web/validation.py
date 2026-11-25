@@ -107,7 +107,7 @@ def validate_doc(data):
             for tile in tiles:
                 if not valid_tile(tile):
                     return "Некорректная клетка карты"
-        elif kind in ("objects", "notes"):
+        elif kind == "objects":
             items = layer.get("items", [])
             if not isinstance(items, list) or len(items) > 400:
                 return "Слишком много объектов на слое"

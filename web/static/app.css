@@ -40,7 +40,11 @@ main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #view-editor.active { flex-direction: row; }
 #view-library.active, #view-gallery.active { flex-direction: column; }
 
-.tool-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+.tools {
+  width: 148px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 8px;
+  background: #1b160f; border-right: 1px solid #3a3124; overflow: auto;
+}
+.tools #palette { margin-top: 6px; }
 .stage {
   flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden;
   display: flex; flex-direction: column; align-items: stretch; padding: 6px; gap: 6px;
@@ -142,5 +146,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 @media (max-width: 720px) {
   #view-editor.active { flex-direction: column; }
+  .tools { width: auto; flex-direction: row; flex-wrap: wrap; max-height: 28vh; }
+  .tool { width: auto; }
   .side { width: auto; max-height: 36vh; }
 }

@@ -76,7 +76,6 @@ const IO = (() => {
       layers: [
         { id: floorId, name: "Стены и пол", kind: "tiles", visible: true, locked: false, tiles: Array(cols * rows).fill(0) },
         { id: uid(), name: "Объекты", kind: "objects", visible: true, locked: false, items: [] },
-        { id: uid(), name: "Заметки мастера", kind: "notes", visible: true, locked: false, items: [] },
       ],
     };
   }
@@ -245,8 +244,13 @@ const IO = (() => {
       },
       layers: [],
     };
+    const fromNotes = [];
     for (const layer of Array.isArray(source.layers) ? source.layers : []) {
-      const kind = layer.kind === "objects" || layer.kind === "notes" ? layer.kind : "tiles";
+      if (layer.kind === "notes") {
+        fromNotes.push(...(Array.isArray(layer.items) ? layer.items : []));
+        continue;
+      }
+      const kind = layer.kind === "objects" ? "objects" : "tiles";
       const base = {
         id: layer.id || uid(),
         name: layer.name || "Слой",
@@ -277,6 +281,30 @@ const IO = (() => {
         }));
       }
       doc.layers.push(base);
+    }
+    if (fromNotes.length) {
+      let objects = doc.layers.find((layer) => layer.kind === "objects");
+      if (!objects) {
+        objects = { id: uid(), name: "Объекты", kind: "objects", visible: true, locked: false, items: [] };
+        doc.layers.push(objects);
+      }
+      const mapped = fromNotes.map((item) => ({
+        id: item.id || uid(),
+        kind: item.kind === "label" ? "label" : "sprite",
+        x: Number(item.x) || 0,
+        y: Number(item.y) || 0,
+        w: Number(item.w) || (item.kind === "label" ? 8 : 3),
+        h: Number(item.h) || (item.kind === "label" ? 2 : 3),
+        assetId: item.assetId || null,
+        src: item.src || "",
+        name: item.name || "",
+        text: item.text || "",
+        description: item.description || "",
+        color: item.color || "#f3e6c0",
+        objectType: OBJECTS[item.objectType] ? item.objectType : "",
+        variant: Number.isInteger(item.variant) && item.variant >= 0 && item.variant < 8 ? item.variant : 0,
+      }));
+      objects.items.push(...mapped);
     }
     if (!doc.layers.some((layer) => layer.kind === "tiles")) {
       const id = uid();
@@ -331,7 +359,21 @@ const IO = (() => {
     doc.rows = data.rows;
     doc.grid = data.grid;
     doc.activeLayerId = data.activeLayerId;
-    doc.layers = data.layers;
+    const kept = [];
+    const fromNotes = [];
+    for (const layer of data.layers || []) {
+      if (layer.kind === "notes") fromNotes.push(...(layer.items || []));
+      else kept.push(layer);
+    }
+    if (fromNotes.length) {
+      let objects = kept.find((layer) => layer.kind === "objects");
+      if (!objects) {
+        objects = { id: uid(), name: "Объекты", kind: "objects", visible: true, locked: false, items: [] };
+        kept.push(objects);
+      }
+      objects.items = (objects.items || []).concat(fromNotes);
+    }
+    doc.layers = kept;
     for (const layer of doc.layers) {
       if (layer.kind === "tiles" && Array.isArray(layer.tiles)) layer.tiles = layer.tiles.map(migrateTile);
     }

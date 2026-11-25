@@ -1,3 +1,5 @@
+import subprocess
+import ssl
 from datetime import timedelta
 
 from flask import Flask
@@ -37,6 +39,32 @@ app.register_blueprint(gallery)
 
 init_db()
 
+
+def ensure_tls():
+    folder = BASE_DIR / "certs"
+    cert = folder / "cert.pem"
+    key = folder / "key.pem"
+    if cert.is_file() and key.is_file():
+        return cert, key
+    folder.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", str(key), "-out", str(cert),
+            "-days", "825", "-nodes",
+            "-subj", "/CN=localhost",
+            "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return cert, key
+
+
 if __name__ == "__main__":
-    print("Сервер запущен: http://127.0.0.1:5000")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    cert, key = ensure_tls()
+    app.config["SESSION_COOKIE_SECURE"] = True
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    print("Сервер запущен: https://127.0.0.1:5000")
+    app.run(debug=True, host="0.0.0.0", port=5000, ssl_context=context)
