@@ -52,6 +52,22 @@ function toolCaption(tool) {
   return TOOL_NAME[tool] || tool;
 }
 
+function fitEditorCanvas() {
+  const canvas = document.getElementById("map");
+  const wrap = canvas && canvas.parentElement;
+  if (!canvas || !wrap || !canvas.width || !canvas.height) return;
+  const style = getComputedStyle(wrap);
+  const availW = wrap.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  const availH = wrap.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+  if (availW < 16 || availH < 16) return;
+  const scale = Math.min(availW / canvas.width, availH / canvas.height);
+  const width = Math.max(1, Math.floor(canvas.width * scale));
+  const height = Math.max(1, Math.floor(canvas.height * scale));
+  if (canvas.style.width === `${width}px` && canvas.style.height === `${height}px`) return;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+}
+
 function cellFromEvent(event) {
   const canvas = document.getElementById("map");
   const rect = canvas.getBoundingClientRect();
@@ -122,6 +138,7 @@ const Editor = {
       selection: App.selection,
       redraw: () => Editor.draw(),
     });
+    fitEditorCanvas();
   },
   setTool(tool, keepVariant) {
     if (PREMIUM.has(tool) && !App.user) {
@@ -835,9 +852,20 @@ function renderSpecials() {
   }
 }
 
+function watchEditorSize() {
+  const wrap = document.querySelector(".stage .canvas-wrap");
+  if (!wrap || typeof ResizeObserver === "undefined") {
+    window.addEventListener("resize", fitEditorCanvas);
+    return;
+  }
+  const observer = new ResizeObserver(() => fitEditorCanvas());
+  observer.observe(wrap);
+}
+
 async function bootApp() {
   UI.bind();
   bindEditor();
+  watchEditorSize();
   renderSpecials();
   renderPalette();
   IO.preload();

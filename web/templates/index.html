@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf }}">
 <title>Dungeon Map Builder — карты подземелий</title>
-<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/app.css?v=tools2">
 </head>
 <body class="app" data-page="editor">
 <header>
@@ -34,21 +34,6 @@
 
 <main>
   <section id="view-editor" class="view active">
-    <aside class="tools">
-      <button class="tool active" type="button" data-tool="wall">Стена</button>
-      <button class="tool" type="button" data-tool="floor">Пол</button>
-      <button class="tool" type="button" data-tool="door">Дверь</button>
-      <button class="tool" type="button" data-tool="empty">Ластик</button>
-      <button class="tool" type="button" data-tool="chest" data-auth="Сундуки доступны после входа">Сундук</button>
-      <button class="tool" type="button" data-tool="enemy" data-auth="Противники доступны после входа">Противник</button>
-      <button class="tool" type="button" data-tool="trap" data-auth="Ловушки доступны после входа">Ловушка</button>
-      <button class="tool" type="button" data-tool="water" data-auth="Вода доступна после входа">Вода</button>
-      <button class="tool" type="button" data-tool="lava" data-auth="Лава доступна после входа">Лава</button>
-      <button class="tool" type="button" data-tool="decor" data-auth="Декор доступен после входа">Декор</button>
-      <button class="tool" type="button" data-tool="select" data-auth="Выбор объектов доступен после входа">Выбор</button>
-      <button class="tool" type="button" data-tool="text" data-auth="Текстовые метки доступны после входа">Метка</button>
-      <button class="tool" type="button" data-tool="sprite" data-auth="Спрайты доступны после входа">Спрайт</button>
-    </aside>
     <div class="stage">
       <div id="player-banner" class="banner" hidden>Режим игрока: заметки мастера скрыты</div>
       <div class="canvas-wrap"><canvas id="map" width="640" height="384"></canvas></div>
@@ -64,6 +49,7 @@
         <button class="btn active" type="button" data-tab="map">Карта</button>
         <button class="btn" type="button" data-tab="layers">Слои</button>
         <button class="btn" type="button" data-tab="grid">Сетка</button>
+        <button class="btn" type="button" data-tab="tools">Редактор</button>
         <button class="btn" type="button" data-tab="gen">Генератор</button>
         <button class="btn" type="button" data-tab="assets">Ассеты</button>
       </div>
@@ -83,6 +69,23 @@
           <label>Текст <input id="prop-text" maxlength="80"></label>
           <label>Описание <textarea id="prop-desc" maxlength="400" placeholder="Всплывающая подсказка"></textarea></label>
           <button id="prop-delete" class="btn danger" type="button">Удалить объект</button>
+        </div>
+      </div>
+      <div data-panel="tools" hidden>
+        <div class="tool-list">
+          <button class="tool active" type="button" data-tool="wall">Стена</button>
+          <button class="tool" type="button" data-tool="floor">Пол</button>
+          <button class="tool" type="button" data-tool="door">Дверь</button>
+          <button class="tool" type="button" data-tool="empty">Ластик</button>
+          <button class="tool" type="button" data-tool="chest" data-auth="Сундуки доступны после входа">Сундук</button>
+          <button class="tool" type="button" data-tool="enemy" data-auth="Противники доступны после входа">Противник</button>
+          <button class="tool" type="button" data-tool="trap" data-auth="Ловушки доступны после входа">Ловушка</button>
+          <button class="tool" type="button" data-tool="water" data-auth="Вода доступна после входа">Вода</button>
+          <button class="tool" type="button" data-tool="lava" data-auth="Лава доступна после входа">Лава</button>
+          <button class="tool" type="button" data-tool="decor" data-auth="Декор доступен после входа">Декор</button>
+          <button class="tool" type="button" data-tool="select" data-auth="Выбор объектов доступен после входа">Выбор</button>
+          <button class="tool" type="button" data-tool="text" data-auth="Текстовые метки доступны после входа">Метка</button>
+          <button class="tool" type="button" data-tool="sprite" data-auth="Спрайты доступны после входа">Спрайт</button>
         </div>
         <div id="palette"></div>
       </div>
